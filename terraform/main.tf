@@ -169,7 +169,7 @@ resource "azurerm_mysql_flexible_database" "stage" {
 }
 
 resource "azurerm_mysql_flexible_server_firewall_rule" "function_access" {
-  for_each            = toset(azurerm_linux_function_app.main.outbound_ip_address_list)
+  for_each            = toset(azurerm_linux_function_app.main.possible_outbound_ip_address_list)
   name                = "allow-function-outbound-${replace(each.value, ".", "-")}"
   resource_group_name = data.azurerm_resource_group.existing.name
   server_name         = data.azurerm_mysql_flexible_server.existing.name
