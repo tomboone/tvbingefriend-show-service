@@ -39,10 +39,10 @@ jobs:
       - name: Terraform Init
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
-          terraform init \\
-            -backend-config="resource_group_name=${{ secrets.TF_STATE_RG }}" \\
-            -backend-config="storage_account_name=${{ secrets.TF_STATE_SA }}" \\
-            -backend-config="container_name=tfstate" \\
+          terraform init \
+            -backend-config="resource_group_name=${{ secrets.TF_STATE_RG }}" \
+            -backend-config="storage_account_name=${{ secrets.TF_STATE_SA }}" \
+            -backend-config="container_name=tfstate" \
             -backend-config="key=tvbingefriend-show-service.terraform.tfstate"
 
       - name: Terraform Validate
@@ -76,15 +76,17 @@ jobs:
           STAGE_MI_ID=$(az functionapp identity show --name $PROD_FUNCTION_NAME --slot stage --resource-group $RG_NAME --query principalId -o tsv)
 
           echo "Granting access to Production DB..."
-          az mysql flexible-server execute --name "$MYSQL_SERVER_NAME" \\
-            --admin-user "${{ secrets.MYSQL_ADMIN_USER }}" \\
-            --admin-password "${{ secrets.MYSQL_ADMIN_PASSWORD }}" \\
-            --database-name "$PROD_DB_NAME" \\
-            --sql "DROP USER IF EXISTS '$PROD_DB_USER'; CREATE AADUSER '$PROD_DB_USER' IDENTIFIED BY '$PROD_MI_ID'; GRANT ALL PRIVILEGES ON \`$PROD_DB_NAME\`.* TO '$PROD_DB_USER'@'%';"
+          PROD_SQL="DROP USER IF EXISTS '$PROD_DB_USER'; CREATE AADUSER '$PROD_DB_USER' IDENTIFIED BY '$PROD_MI_ID'; GRANT ALL PRIVILEGES ON \`$PROD_DB_NAME\`.* TO '$PROD_DB_USER'@'%';"
+          az mysql flexible-server execute --name "$MYSQL_SERVER_NAME" \
+            --admin-user "${{ secrets.MYSQL_ADMIN_USER }}" \
+            --admin-password "${{ secrets.MYSQL_ADMIN_PASSWORD }}" \
+            --database-name "$PROD_DB_NAME" \
+            --sql "$PROD_SQL"
 
           echo "Granting access to Stage DB..."
-          az mysql flexible-server execute --name "$MYSQL_SERVER_NAME" \\
-            --admin-user "${{ secrets.MYSQL_ADMIN_USER }}" \\
-            --admin-password "${{ secrets.MYSQL_ADMIN_PASSWORD }}" \\
-            --database-name "$STAGE_DB_NAME" \\
-            --sql "DROP USER IF EXISTS '$STAGE_DB_USER'; CREATE AADUSER '$STAGE_DB_USER' IDENTIFIED BY '$STAGE_MI_ID'; GRANT ALL PRIVILEGES ON \`$STAGE_DB_NAME\`.* TO '$STAGE_DB_USER'@'%';"
+          STAGE_SQL="DROP USER IF EXISTS '$STAGE_DB_USER'; CREATE AADUSER '$STAGE_DB_USER' IDENTIFIED BY '$STAGE_MI_ID'; GRANT ALL PRIVILEGES ON \`$STAGE_DB_NAME\`.* TO '$STAGE_DB_USER'@'%';"
+          az mysql flexible-server execute --name "$MYSQL_SERVER_NAME" \
+            --admin-user "${{ secrets.MYSQL_ADMIN_USER }}" \
+            --admin-password "${{ secrets.MYSQL_ADMIN_PASSWORD }}" \
+            --database-name "$STAGE_DB_NAME" \
+            --sql "$STAGE_SQL"
