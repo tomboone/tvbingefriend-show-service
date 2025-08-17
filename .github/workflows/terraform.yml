@@ -1,1 +1,90 @@
-# This workflow deploys the Terraform infrastructure for the tvbingefriend-show-service.\n\nname: 'Terraform Infrastructure Deployment'\n\non:\n  push:\n    branches:\n      - main\n  workflow_dispatch: # Allows manual triggering\n\n# These permissions are needed for Azure OIDC login and code checkout.\npermissions:\n  id-token: write\n  contents: read\n\nenv:\n  # These TF_VARs are automatically picked up by Terraform.\n  TF_VAR_resource_group_name: ${{ secrets.AZURE_RESOURCE_GROUP }}\n  TF_VAR_app_service_plan_name: ${{ secrets.AZURE_APP_SERVICE_PLAN }}\n  TF_VAR_mysql_server_name: ${{ secrets.AZURE_MYSQL_SERVER }}\n\njobs:\n  deploy-infrastructure:\n    name: 'Deploy Terraform Infrastructure'\n    runs-on: ubuntu-latest\n    environment: production\n\n    steps:\n      - name: 'Checkout Code'\n        uses: actions/checkout@v4\n\n      - name: 'Log in to Azure'\n        uses: azure/login@v1\n        with:\n          client-id: ${{ secrets.AZURE_CLIENT_ID }}\n          tenant-id: ${{ secrets.AZURE_TENANT_ID }}\n          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}\n\n      - name: 'Setup Terraform'\n        uses: hashicorp/setup-terraform@v2\n\n      - name: 'Terraform Init'\n        working-directory: ./terraform\n        run: |\n          terraform init \\\n            -backend-config=\"resource_group_name=${{ secrets.TF_STATE_RG }}\" \\\n            -backend-config=\"storage_account_name=${{ secrets.TF_STATE_SA }}\" \\\n            -backend-config=\"container_name=tfstate\" \\\n            -backend-config=\"key=tvbingefriend-show-service.terraform.tfstate\"\n\n      - name: 'Terraform Validate'\n        working-directory: ./terraform\n        run: terraform validate\n\n      - name: 'Terraform Plan'\n        working-directory: ./terraform\n        run: terraform plan -out=tfplan\n\n      - name: 'Terraform Apply'\n        working-directory: ./terraform\n        run: terraform apply -auto-approve tfplan\n\n      - name: 'Grant DB Access to Managed Identities'\n        id: grant_db_access\n        run: |\n          echo \"Granting DB access to Production and Stage slots...\"\n          RG_NAME=\"${{ secrets.AZURE_RESOURCE_GROUP }}\"\n          MYSQL_SERVER_NAME=\"${{ secrets.AZURE_MYSQL_SERVER }}\"\n          PROD_DB_NAME=\"tvbingefriend_show_service\"\n          STAGE_DB_NAME=\"tvbingefriend_show_service-stage\"\n          PROD_FUNCTION_NAME=\"tvbingefriend-show-service\"\n          STAGE_FUNCTION_NAME=\"tvbingefriend-show-service\"\n\n          # Get the Managed Identity IDs\n          PROD_MI_ID=$(az functionapp identity show --name $PROD_FUNCTION_NAME --resource-group $RG_NAME --query principalId -o tsv)\n          STAGE_MI_ID=$(az functionapp identity show --name $STAGE_FUNCTION_NAME --slot stage --resource-group $RG_NAME --query principalId -o tsv)\n\n          # Grant access to Production DB\n          az mysql flexible-server execute --name \"$MYSQL_SERVER_NAME\" \\\n            --admin-user \"${{ secrets.MYSQL_ADMIN_USER }}\" \\\n            --admin-password \"${{ secrets.MYSQL_ADMIN_PASSWORD }}\" \\\n            --database-name \"$PROD_DB_NAME\" \\\n            --sql \"DROP USER IF EXISTS '$PROD_FUNCTION_NAME'; CREATE AADUSER '$PROD_FUNCTION_NAME' IDENTIFIED BY '$PROD_MI_ID'; GRANT ALL PRIVILEGES ON \\\`$PROD_DB_NAME\\\`.* TO '$PROD_FUNCTION_NAME'@'%';\"\n\n          # Grant access to Stage DB\n          az mysql flexible-server execute --name \"$MYSQL_SERVER_NAME\" \\\n            --admin-user \"${{ secrets.MYSQL_ADMIN_USER }}\" \\\n            --admin-password \"${{ secrets.MYSQL_ADMIN_PASSWORD }}\" \\\n            --database-name \"$STAGE_DB_NAME\" \\\n            --sql \"DROP USER IF EXISTS '$STAGE_FUNCTION_NAME'; CREATE AADUSER '$STAGE_FUNCTION_NAME' IDENTIFIED BY '$STAGE_MI_ID'; GRANT ALL PRIVILEGES ON \\\`$STAGE_DB_NAME\\\`.* TO '$STAGE_FUNCTION_NAME'@'%';\"\n        continue-on-error: false\n
+name: Terraform Infrastructure Deployment
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_VAR_resource_group_name: ${{ secrets.AZURE_RESOURCE_GROUP }}
+  TF_VAR_app_service_plan_name: ${{ secrets.AZURE_APP_SERVICE_PLAN }}
+  TF_VAR_mysql_server_name: ${{ secrets.AZURE_MYSQL_SERVER }}
+  TF_WORKING_DIR: ./terraform
+
+jobs:
+  deploy-infrastructure:
+    name: Deploy Terraform Infrastructure
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Log in to Azure
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform init \\
+            -backend-config="resource_group_name=${{ secrets.TF_STATE_RG }}" \\
+            -backend-config="storage_account_name=${{ secrets.TF_STATE_SA }}" \\
+            -backend-config="container_name=tfstate" \\
+            -backend-config="key=tvbingefriend-show-service.terraform.tfstate"
+
+      - name: Terraform Validate
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform apply -auto-approve tfplan
+
+      - name: Grant DB Access to Managed Identities
+        id: grant_db_access
+        run: |
+          echo "Granting DB access to Production and Stage slots..."
+          RG_NAME="${{ secrets.AZURE_RESOURCE_GROUP }}"
+          MYSQL_SERVER_NAME="${{ secrets.AZURE_MYSQL_SERVER }}"
+          
+          PROD_FUNCTION_NAME="tvbingefriend-show-service"
+          PROD_DB_NAME="tvbingefriend_show_service"
+          PROD_DB_USER="tvbingefriend-show-service"
+
+          STAGE_DB_NAME="tvbingefriend_show_service-stage"
+          STAGE_DB_USER="tvbingefriend-show-service-stage"
+
+          echo "Getting Managed Identity IDs..."
+          PROD_MI_ID=$(az functionapp identity show --name $PROD_FUNCTION_NAME --resource-group $RG_NAME --query principalId -o tsv)
+          STAGE_MI_ID=$(az functionapp identity show --name $PROD_FUNCTION_NAME --slot stage --resource-group $RG_NAME --query principalId -o tsv)
+
+          echo "Granting access to Production DB..."
+          az mysql flexible-server execute --name "$MYSQL_SERVER_NAME" \\
+            --admin-user "${{ secrets.MYSQL_ADMIN_USER }}" \\
+            --admin-password "${{ secrets.MYSQL_ADMIN_PASSWORD }}" \\
+            --database-name "$PROD_DB_NAME" \\
+            --sql "DROP USER IF EXISTS '$PROD_DB_USER'; CREATE AADUSER '$PROD_DB_USER' IDENTIFIED BY '$PROD_MI_ID'; GRANT ALL PRIVILEGES ON \`$PROD_DB_NAME\`.* TO '$PROD_DB_USER'@'%';"
+
+          echo "Granting access to Stage DB..."
+          az mysql flexible-server execute --name "$MYSQL_SERVER_NAME" \\
+            --admin-user "${{ secrets.MYSQL_ADMIN_USER }}" \\
+            --admin-password "${{ secrets.MYSQL_ADMIN_PASSWORD }}" \\
+            --database-name "$STAGE_DB_NAME" \\
+            --sql "DROP USER IF EXISTS '$STAGE_DB_USER'; CREATE AADUSER '$STAGE_DB_USER' IDENTIFIED BY '$STAGE_MI_ID'; GRANT ALL PRIVILEGES ON \`$STAGE_DB_NAME\`.* TO '$STAGE_DB_USER'@'%';"
