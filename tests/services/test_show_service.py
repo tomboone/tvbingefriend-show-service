@@ -5,10 +5,14 @@ from unittest.mock import MagicMock, patch
 
 import azure.functions as func
 
-# Set required env var for module import
+# Set required env vars for module import
+os.environ['DB_HOST'] = 'test_host'
+os.environ['DB_NAME'] = 'test_db'
+os.environ['DB_USER'] = 'test_user'
 os.environ['SQLALCHEMY_CONNECTION_STRING'] = 'sqlite:///:memory:'
 
 from tvbingefriend_show_service.services.show_service import ShowService
+from tvbingefriend_show_service.config import SHOW_UPSERT_QUEUE, SHOWS_INDEX_QUEUE
 
 
 class TestShowService(unittest.TestCase):
@@ -22,7 +26,7 @@ class TestShowService(unittest.TestCase):
     def test_start_get_all_shows(self):
         self.service.start_get_all_shows(page=1)
         self.service.storage_service.upload_queue_message.assert_called_once_with(
-            queue_name='index-queue',
+            queue_name=SHOWS_INDEX_QUEUE,
             message={"page": 1}
         )
 
@@ -82,7 +86,7 @@ class TestShowService(unittest.TestCase):
         self.service.get_updates()
 
         self.service.storage_service.upload_queue_message.assert_called_once_with(
-            queue_name='shows-upsert-queue',
+            queue_name=SHOW_UPSERT_QUEUE,
             message={'show_id': 1}
         )
         self.service.storage_service.upsert_entity.assert_called_once_with(

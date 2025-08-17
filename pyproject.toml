@@ -14,6 +14,7 @@ dependencies = [
     "tvbingefriend-azure-storage-service (>=0.1.0,<0.2.0)",
     "alembic (>=1.16.4,<2.0.0)",
     "pymysql (>=1.1.1,<2.0.0)",
+    "azure-identity (>=1.24.0,<2.0.0)",
 ]
 
 [[tool.poetry.source]]

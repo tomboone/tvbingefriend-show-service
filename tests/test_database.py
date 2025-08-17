@@ -3,19 +3,10 @@ import os
 import unittest
 from unittest.mock import patch
 
+# Set a dummy connection string for test environment to avoid real DB connection
 os.environ['SQLALCHEMY_CONNECTION_STRING'] = 'sqlite:///:memory:'
 
 class TestDatabase(unittest.TestCase):
-
-    def test_missing_connection_string(self):
-        """Test that ValueError is raised when the connection string is empty."""
-        with patch.dict(os.environ, {"SQLALCHEMY_CONNECTION_STRING": ""}):
-            from tvbingefriend_show_service import config, database
-            # Reload config to pick up the patched env var, then assert that
-            # reloading the database module raises the expected error.
-            importlib.reload(config)
-            with self.assertRaises(ValueError):
-                importlib.reload(database)
 
     # Patch the functions at their source, so that when the database module
     # is reloaded, it uses our mocks.

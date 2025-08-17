@@ -2,17 +2,21 @@ import os
 import unittest
 from unittest.mock import patch
 
-# Set required env var for module import
-os.environ['SQLALCHEMY_CONNECTION_STRING'] = 'sqlite:///:memory:'
+# Set required env vars for module import
+os.environ['DB_HOST'] = 'test_host'
+os.environ['DB_NAME'] = 'test_db'
+os.environ['DB_USER'] = 'test_user'
 
-from tvbingefriend_show_service.config import _get_required_env, SQLALCHEMY_CONNECTION_STRING
+from tvbingefriend_show_service.config import _get_required_env, DB_HOST, DB_NAME, DB_USER
 
 
 class TestConfig(unittest.TestCase):
 
-    def test_sqlalchemy_connection_string_loaded(self):
-        """Check if the connection string is loaded correctly."""
-        self.assertEqual(SQLALCHEMY_CONNECTION_STRING, 'sqlite:///:memory:')
+    def test_db_vars_loaded(self):
+        """Check if the DB connection vars are loaded correctly."""
+        self.assertEqual(DB_HOST, 'test_host')
+        self.assertEqual(DB_NAME, 'test_db')
+        self.assertEqual(DB_USER, 'test_user')
 
     @patch.dict(os.environ, {'TEST_VAR': 'test_value'})
     def test_get_required_env_found(self):

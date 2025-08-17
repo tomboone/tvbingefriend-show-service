@@ -13,14 +13,16 @@ def _get_required_env(var_name: str) -> str:
 STORAGE_CONNECTION_SETTING_NAME: str = "AzureWebJobsStorage"
 STORAGE_CONNECTION_STRING: str | None = os.getenv(STORAGE_CONNECTION_SETTING_NAME)
 
-SQLALCHEMY_CONNECTION_STRING: str = _get_required_env("SQLALCHEMY_CONNECTION_STRING")
+DB_HOST: str = _get_required_env("DB_HOST")
+DB_NAME: str = _get_required_env("DB_NAME")
+DB_USER: str = _get_required_env("DB_USER")
 
 SHOWS_INDEX_QUEUE: str = os.getenv("SHOWS_INDEX_QUEUE", "index-queue")
 
 SHOWS_PAGE_QUEUE: str = os.getenv("SHOWS_PAGE_QUEUE", "shows-page-queue")
 SHOWS_PAGE_CONTAINER: str = os.getenv("SHOWS_PAGE_CONTAINER", "shows-page-container")
 
-SHOW_UPSERT_QUEUE: str = os.getenv("SHOWS_UPSERT_QUEUE", "shows-upsert-queue")
+SHOW_UPSERT_QUEUE: str = os.getenv("SHOW_UPSERT_QUEUE", "shows-upsert-queue")
 SHOW_UPSERT_CONTAINER: str = os.getenv("SHOW_UPSERT_CONTAINER", "shows-upsert-container")
 
 SHOW_DETAILS_QUEUE: str = os.getenv("SHOW_DETAILS_QUEUE", "shows-details-queue")

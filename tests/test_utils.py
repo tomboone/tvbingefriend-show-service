@@ -2,7 +2,7 @@ import os
 import unittest
 from unittest.mock import patch, MagicMock
 
-# Set required env var for module import
+# Set required env var for module import to use the test database
 os.environ['SQLALCHEMY_CONNECTION_STRING'] = 'sqlite:///:memory:'
 
 from tvbingefriend_show_service.utils import db_session_manager
