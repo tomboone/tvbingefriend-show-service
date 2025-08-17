@@ -120,6 +120,7 @@ resource "azurerm_linux_function_app" "main" {
   }
 }
 
+# noinspection HILUnresolvedReference
 resource "azurerm_linux_function_app_slot" "stage" {
   name            = "stage"
   function_app_id = azurerm_linux_function_app.main.id

@@ -73,13 +73,14 @@ def main():
     package_name_safe = re.sub(r'[^a-zA-Z0-9]', '', short_package_name).lower()
     package_name_db = short_package_name.replace('-', '_')
 
+    # The values for storage resources must be JSON-encoded strings for Terraform
     output = {
         "package_name": short_package_name,
         "package_name_safe": package_name_safe,
         "package_name_db": package_name_db,
-        "storage_queues": config_defaults["storage_queues"],
-        "storage_containers": config_defaults["storage_containers"],
-        "storage_tables": config_defaults["storage_tables"],
+        "storage_queues": json.dumps(config_defaults["storage_queues"]),
+        "storage_containers": json.dumps(config_defaults["storage_containers"]),
+        "storage_tables": json.dumps(config_defaults["storage_tables"]),
     }
 
     print(json.dumps(output))
