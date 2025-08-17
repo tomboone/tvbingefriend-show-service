@@ -11,6 +11,12 @@ terraform {
   }
 }
 
+variable "subscription_id" {
+  type        = string
+  description = "The Azure subscription ID."
+}
+
 provider "azurerm" {
   features {}
+  subscription_id = var.subscription_id
 }
