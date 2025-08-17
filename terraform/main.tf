@@ -1,6 +1,6 @@
 locals {
-  # Find the python executable
-  python_executable = coalesce(fileset(path.root, "/usr/bin/python3"), fileset(path.root, "/usr/bin/python"))[0]
+  # Find the python executable, preferring python3.
+  python_executable = fileexists("/usr/bin/python3") ? "/usr/bin/python3" : "/usr/bin/python"
 }
 
 data "external" "config" {

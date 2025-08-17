@@ -12,7 +12,7 @@ os.environ['DB_USER'] = 'test_user'
 os.environ['SQLALCHEMY_CONNECTION_STRING'] = 'sqlite:///:memory:'
 
 from tvbingefriend_show_service.services.show_service import ShowService
-from tvbingefriend_show_service.config import SHOW_UPSERT_QUEUE, SHOWS_INDEX_QUEUE
+from tvbingefriend_show_service.config import SHOW_UPSERT_QUEUE, SHOWS_INDEX_QUEUE, SHOW_IDS_TABLE
 
 
 class TestShowService(unittest.TestCase):
@@ -90,7 +90,7 @@ class TestShowService(unittest.TestCase):
             message={'show_id': 1}
         )
         self.service.storage_service.upsert_entity.assert_called_once_with(
-            table_name='shows-ids-table',
+            table_name=SHOW_IDS_TABLE,
             entity={
                 'PartitionKey': 'show',
                 'RowKey': '1',
