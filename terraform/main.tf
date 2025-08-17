@@ -1,6 +1,16 @@
 locals {
   # Find the python executable, preferring python3.
   python_executable = fileexists("/usr/bin/python3") ? "/usr/bin/python3" : "/usr/bin/python"
+
+  # Decode the JSON strings from the external data source into proper maps.
+  config = {
+    package_name       = data.external.config.result.package_name
+    package_name_safe  = data.external.config.result.package_name_safe
+    package_name_db    = data.external.config.result.package_name_db
+    storage_queues     = jsondecode(data.external.config.result.storage_queues)
+    storage_containers = jsondecode(data.external.config.result.storage_containers)
+    storage_tables     = jsondecode(data.external.config.result.storage_tables)
+  }
 }
 
 data "external" "config" {
@@ -28,7 +38,7 @@ resource "random_string" "storage_suffix" {
 }
 
 resource "azurerm_storage_account" "main" {
-  name                     = "${data.external.config.result.package_name_safe}${random_string.storage_suffix.result}"
+  name                     = "${local.config.package_name_safe}${random_string.storage_suffix.result}"
   resource_group_name      = data.azurerm_resource_group.existing.name
   location                 = data.azurerm_resource_group.existing.location
   account_tier             = "Standard"
@@ -36,52 +46,52 @@ resource "azurerm_storage_account" "main" {
 }
 
 resource "azurerm_storage_queue" "main" {
-  for_each             = data.external.config.result.storage_queues
+  for_each             = local.config.storage_queues
   name                 = each.value
   storage_account_name = azurerm_storage_account.main.name
 }
 
 resource "azurerm_storage_queue" "stage" {
-  for_each             = data.external.config.result.storage_queues
+  for_each             = local.config.storage_queues
   name                 = "${each.value}-stage"
   storage_account_name = azurerm_storage_account.main.name
 }
 
 resource "azurerm_storage_container" "main" {
-  for_each              = data.external.config.result.storage_containers
+  for_each              = local.config.storage_containers
   name                  = each.value
   storage_account_id    = azurerm_storage_account.main.id
   container_access_type = "private"
 }
 
 resource "azurerm_storage_container" "stage" {
-  for_each              = data.external.config.result.storage_containers
+  for_each              = local.config.storage_containers
   name                  = "${each.value}-stage"
   storage_account_id    = azurerm_storage_account.main.id
   container_access_type = "private"
 }
 
 resource "azurerm_storage_table" "main" {
-  for_each             = data.external.config.result.storage_tables
+  for_each             = local.config.storage_tables
   name                 = each.value
   storage_account_name = azurerm_storage_account.main.name
 }
 
 resource "azurerm_storage_table" "stage" {
-  for_each             = data.external.config.result.storage_tables
+  for_each             = local.config.storage_tables
   name                 = "${each.value}stage"
   storage_account_name = azurerm_storage_account.main.name
 }
 
 resource "azurerm_application_insights" "main" {
-  name                = data.external.config.result.package_name
+  name                = local.config.package_name
   resource_group_name = data.azurerm_resource_group.existing.name
   location            = data.azurerm_resource_group.existing.location
   application_type    = "web"
 }
 
 resource "azurerm_linux_function_app" "main" {
-  name                = data.external.config.result.package_name
+  name                = local.config.package_name
   resource_group_name = data.azurerm_resource_group.existing.name
   location            = data.azurerm_resource_group.existing.location
   service_plan_id     = data.azurerm_service_plan.existing.id
@@ -106,7 +116,7 @@ resource "azurerm_linux_function_app" "main" {
     "AzureWebJobsStorage"                   = azurerm_storage_account.main.primary_connection_string
     "DB_HOST"                               = data.azurerm_mysql_flexible_server.existing.fqdn
     "DB_NAME"                               = azurerm_mysql_flexible_database.prod.name
-    "DB_USER"                               = data.external.config.result.package_name
+    "DB_USER"                               = local.config.package_name
   }
 }
 
@@ -131,18 +141,18 @@ resource "azurerm_linux_function_app_slot" "stage" {
     # These settings are sticky to the slot by default
     "DB_HOST"                               = data.azurerm_mysql_flexible_server.existing.fqdn
     "DB_NAME"                               = azurerm_mysql_flexible_database.stage.name,
-    "DB_USER"                               = "${data.external.config.result.package_name}/stage",
+    "DB_USER"                               = "${local.config.package_name}/stage",
     # Override storage resource names for stage
-    "SHOW_DETAILS_QUEUE" = "${data.external.config.result.storage_queues.SHOW_DETAILS_QUEUE}-stage",
-    "SHOW_UPSERT_QUEUE"  = "${data.external.config.result.storage_queues.SHOW_UPSERT_QUEUE}-stage",
-    "SHOW_IDS_TABLE"     = "${data.external.config.result.storage_tables.SHOW_IDS_TABLE}stage",
+    "SHOW_DETAILS_QUEUE" = "${local.config.storage_queues.SHOW_DETAILS_QUEUE}-stage",
+    "SHOW_UPSERT_QUEUE"  = "${local.config.storage_queues.SHOW_UPSERT_QUEUE}-stage",
+    "SHOW_IDS_TABLE"     = "${local.config.storage_tables.SHOW_IDS_TABLE}stage",
     # Disable timer triggers in stage by setting a dummy value for their schedule
     "TIMER_TRIGGER_SCHEDULE" = "disabled"
   }
 }
 
 resource "azurerm_mysql_flexible_database" "prod" {
-  name                = data.external.config.result.package_name_db
+  name                = local.config.package_name_db
   resource_group_name = data.azurerm_resource_group.existing.name
   server_name         = data.azurerm_mysql_flexible_server.existing.name
   charset             = "utf8mb4"
@@ -150,7 +160,7 @@ resource "azurerm_mysql_flexible_database" "prod" {
 }
 
 resource "azurerm_mysql_flexible_database" "stage" {
-  name                = "${data.external.config.result.package_name_db}-stage"
+  name                = "${local.config.package_name_db}-stage"
   resource_group_name = data.azurerm_resource_group.existing.name
   server_name         = data.azurerm_mysql_flexible_server.existing.name
   charset             = "utf8mb4-unicode_ci"
