@@ -15,6 +15,7 @@ env:
   TF_VAR_app_service_plan_name: ${{ secrets.AZURE_APP_SERVICE_PLAN }}
   TF_VAR_mysql_server_name: ${{ secrets.AZURE_MYSQL_SERVER }}
   TF_WORKING_DIR: ./terraform
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
 jobs:
   deploy-infrastructure:
