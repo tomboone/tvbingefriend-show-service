@@ -2,7 +2,7 @@ data "azurerm_resource_group" "existing" {
   name = var.resource_group_name
 }
 
-data "azurerm_app_service_plan" "existing" {
+data "azurerm_service_plan" "existing" {
   name                = var.app_service_plan_name
   resource_group_name = data.azurerm_resource_group.existing.name
 }
@@ -75,7 +75,7 @@ resource "azurerm_linux_function_app" "main" {
   name                = var.package_name
   resource_group_name = data.azurerm_resource_group.existing.name
   location            = data.azurerm_resource_group.existing.location
-  service_plan_id     = data.azurerm_app_service_plan.existing.id
+  service_plan_id     = data.azurerm_service_plan.existing.id
 
   storage_account_name       = azurerm_storage_account.main.name
   storage_account_access_key = azurerm_storage_account.main.primary_access_key
@@ -104,6 +104,9 @@ resource "azurerm_linux_function_app" "main" {
 resource "azurerm_linux_function_app_slot" "stage" {
   name            = "stage"
   function_app_id = azurerm_linux_function_app.main.id
+
+  storage_account_name       = azurerm_storage_account.main.name
+  storage_account_access_key = azurerm_storage_account.main.primary_access_key
 
   identity {
     type = "SystemAssigned"
