@@ -138,18 +138,18 @@ resource "azurerm_linux_function_app_slot" "stage" {
     }
   }
 
-  app_settings = {
-    # These settings are sticky to the slot by default
-    "DB_HOST"                               = data.azurerm_mysql_flexible_server.existing.fqdn
-    "DB_NAME"                               = azurerm_mysql_flexible_database.stage.name,
-    "DB_USER"                               = "${local.config.package_name}/stage",
-    # Override storage resource names for stage
-    "SHOW_DETAILS_QUEUE" = "${local.config.storage_queues.SHOW_DETAILS_QUEUE}-stage",
-    "SHOW_UPSERT_QUEUE"  = "${local.config.storage_queues.SHOW_UPSERT_QUEUE}-stage",
-    "SHOW_IDS_TABLE"     = "${local.config.storage_tables.SHOW_IDS_TABLE}stage",
-    # Disable timer triggers in stage by setting a dummy value for their schedule
-    "TIMER_TRIGGER_SCHEDULE" = "disabled"
-  }
+  app_settings = merge(
+    {
+      # These settings are sticky to the slot by default
+      "DB_HOST"                = data.azurerm_mysql_flexible_server.existing.fqdn
+      "DB_NAME"                = azurerm_mysql_flexible_database.stage.name,
+      "DB_USER"                = "${local.config.package_name}/stage",
+      "TIMER_TRIGGER_SCHEDULE" = "disabled"
+    },
+    # Override storage resource names for stage dynamically
+    { for k, v in local.config.storage_queues : k => "${v}-stage" },
+    { for k, v in local.config.storage_tables : k => "${v}stage" }
+  )
 }
 
 resource "azurerm_mysql_flexible_database" "prod" {
@@ -169,8 +169,8 @@ resource "azurerm_mysql_flexible_database" "stage" {
 }
 
 resource "azurerm_mysql_flexible_server_firewall_rule" "function_access" {
-  for_each            = toset(azurerm_linux_function_app.main.possible_outbound_ip_addresses)
-  name                = "allow-function-outbound-${index(azurerm_linux_function_app.main.possible_outbound_ip_addresses, each.value)}"
+  for_each            = toset(split(",", azurerm_linux_function_app.main.possible_outbound_ip_addresses))
+  name                = "allow-function-outbound-${replace(each.value, ".", "-")}"
   resource_group_name = data.azurerm_resource_group.existing.name
   server_name         = data.azurerm_mysql_flexible_server.existing.name
   start_ip_address    = each.value
