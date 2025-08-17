@@ -36,40 +36,40 @@ resource "azurerm_storage_account" "main" {
 }
 
 resource "azurerm_storage_queue" "main" {
-  for_each             = toset(data.external.config.result.storage_queues)
-  name                 = each.key
+  for_each             = data.external.config.result.storage_queues
+  name                 = each.value
   storage_account_name = azurerm_storage_account.main.name
 }
 
 resource "azurerm_storage_queue" "stage" {
-  for_each             = toset(data.external.config.result.storage_queues)
-  name                 = "${each.key}-stage"
+  for_each             = data.external.config.result.storage_queues
+  name                 = "${each.value}-stage"
   storage_account_name = azurerm_storage_account.main.name
 }
 
 resource "azurerm_storage_container" "main" {
-  for_each              = toset(data.external.config.result.storage_containers)
-  name                  = each.key
+  for_each              = data.external.config.result.storage_containers
+  name                  = each.value
   storage_account_id    = azurerm_storage_account.main.id
   container_access_type = "private"
 }
 
 resource "azurerm_storage_container" "stage" {
-  for_each              = toset(data.external.config.result.storage_containers)
-  name                  = "${each.key}-stage"
+  for_each              = data.external.config.result.storage_containers
+  name                  = "${each.value}-stage"
   storage_account_id    = azurerm_storage_account.main.id
   container_access_type = "private"
 }
 
 resource "azurerm_storage_table" "main" {
-  for_each             = toset(data.external.config.result.storage_tables)
-  name                 = each.key
+  for_each             = data.external.config.result.storage_tables
+  name                 = each.value
   storage_account_name = azurerm_storage_account.main.name
 }
 
 resource "azurerm_storage_table" "stage" {
-  for_each             = toset(data.external.config.result.storage_tables)
-  name                 = "${each.key}stage"
+  for_each             = data.external.config.result.storage_tables
+  name                 = "${each.value}stage"
   storage_account_name = azurerm_storage_account.main.name
 }
 
@@ -133,9 +133,9 @@ resource "azurerm_linux_function_app_slot" "stage" {
     "DB_NAME"                               = azurerm_mysql_flexible_database.stage.name,
     "DB_USER"                               = "${data.external.config.result.package_name}/stage",
     # Override storage resource names for stage
-    "SHOW_DETAILS_QUEUE" = "${data.external.config.result.storage_queues[0]}-stage",
-    "SHOW_UPSERT_QUEUE"  = "${data.external.config.result.storage_queues[1]}-stage",
-    "SHOW_DETAILS_TABLE" = "${data.external.config.result.storage_tables[0]}stage",
+    "SHOW_DETAILS_QUEUE" = "${data.external.config.result.storage_queues.SHOW_DETAILS_QUEUE}-stage",
+    "SHOW_UPSERT_QUEUE"  = "${data.external.config.result.storage_queues.SHOW_UPSERT_QUEUE}-stage",
+    "SHOW_IDS_TABLE"     = "${data.external.config.result.storage_tables.SHOW_IDS_TABLE}stage",
     # Disable timer triggers in stage by setting a dummy value for their schedule
     "TIMER_TRIGGER_SCHEDULE" = "disabled"
   }

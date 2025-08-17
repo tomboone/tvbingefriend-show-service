@@ -16,11 +16,11 @@ def get_pyproject_name(pyproject_path):
 
 
 def get_config_defaults(config_path):
-    """Parses config.py to get default storage names."""
+    """Parses config.py to get default storage names as maps."""
     defaults = {
-        "storage_queues": [],
-        "storage_containers": [],
-        "storage_tables": []
+        "storage_queues": {},
+        "storage_containers": {},
+        "storage_tables": {}
     }
     with open(config_path) as f:
         tree = ast.parse(f.read())
@@ -32,26 +32,21 @@ def get_config_defaults(config_path):
                     var_name = target.id
                     if isinstance(node.value, ast.Call):
                         call = node.value
-                        # Check for os.getenv call
-                        if (
-                            isinstance(call.func, ast.Attribute)
-                            and isinstance(call.func.value, ast.Name)
-                            and call.func.value.id == 'os'
-                            and call.func.attr == 'getenv'
-                            and len(call.args) > 1
-                        ):
-                            default_value_node = call.args[1]
-                            if (
-                                isinstance(default_value_node, ast.Constant)
-                                and isinstance(default_value_node.value, str)
-                            ):
-                                default_value = default_value_node.value
+                        # Check for _get_setting call
+                        if isinstance(call.func, ast.Name) and call.func.id == '_get_setting':
+                            default_value = None
+                            for keyword in call.keywords:
+                                if keyword.arg == 'default' and isinstance(keyword.value, ast.Constant):
+                                    default_value = keyword.value.value
+                                    break
+                            
+                            if default_value:
                                 if var_name.endswith("_QUEUE"):
-                                    defaults["storage_queues"].append(default_value)
+                                    defaults["storage_queues"][var_name] = default_value
                                 elif var_name.endswith("_CONTAINER"):
-                                    defaults["storage_containers"].append(default_value)
+                                    defaults["storage_containers"][var_name] = default_value
                                 elif var_name.endswith("_TABLE"):
-                                    defaults["storage_tables"].append(default_value)
+                                    defaults["storage_tables"][var_name] = default_value
     return defaults
 
 
