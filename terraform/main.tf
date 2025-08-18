@@ -26,7 +26,7 @@ resource "azurerm_storage_account" "storage_account" {
 
 locals {
   index_queue_name = "index-queue",
-  details_queue_name = "details-queue",
+  details_queue_name = "details-queue"
   show_ids_table_name = "show-ids-table"
 }
 
