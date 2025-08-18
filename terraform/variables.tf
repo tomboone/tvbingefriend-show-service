@@ -18,7 +18,3 @@ variable "project_name" {
   description = "The name of the project."
   default     = "tvbf-show-service"
 }
-
-variable "location" {
-  type = string
-}

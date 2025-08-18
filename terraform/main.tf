@@ -25,38 +25,42 @@ resource "azurerm_storage_account" "storage_account" {
 }
 
 locals {
-  index_queue_name = "index-queue",
-  details_queue_name = "details-queue"
-  show_ids_table_name = "show-ids-table"
+  config = {
+    package_name = var.project_name
+    storage_queues = {
+      # App Setting Key  => Queue Name Prefix
+      "INDEX_QUEUE_NAME"   = "index-queue"
+      "DETAILS_QUEUE_NAME" = "details-queue"
+    }
+    storage_tables = {
+      # App Setting Key  => Table Name Prefix
+      "SHOW_IDS_TABLE_NAME" = "showidstable"
+    }
+  }
 }
 
 resource "azurerm_storage_queue" "index_queue" {
-  name                 = local.index_queue_name
+  name                 = local.config.storage_queues.INDEX_QUEUE_NAME
   storage_account_name = azurerm_storage_account.storage_account.name
 }
 
 resource "azurerm_storage_queue" "stage_index_queue" {
-  name                 = "${local.index_queue_name}-stage"
+  name                 = "${local.config.storage_queues.INDEX_QUEUE_NAME}-stage"
   storage_account_name = azurerm_storage_account.storage_account.name
 }
 
 resource "azurerm_storage_queue" "details_queue" {
-  name                 = local.details_queue_name
+  name                 = local.config.storage_queues.DETAILS_QUEUE_NAME
   storage_account_name = azurerm_storage_account.storage_account.name
 }
 
 resource "azurerm_storage_queue" "stage_details_queue" {
-  name                 = "${local.details_queue_name}-stage"
+  name                 = "${local.config.storage_queues.DETAILS_QUEUE_NAME}-stage"
   storage_account_name = azurerm_storage_account.storage_account.name
 }
 
 resource "azurerm_storage_table" "show_ids_table" {
-  name                 = local.show_ids_table_name
-  storage_account_name = azurerm_storage_account.storage_account.name
-}
-
-resource "azurerm_storage_table" "stage_show_ids_table" {
-  name                 = "${local.show_ids_table_name}-stage"
+  name                 = local.config.storage_tables.SHOW_IDS_TABLE_NAME
   storage_account_name = azurerm_storage_account.storage_account.name
 }
 
@@ -86,16 +90,20 @@ resource "azurerm_linux_function_app" "main" {
     type = "SystemAssigned"
   }
 
-  app_settings = {
-    "WEBSITE_TIME_ZONE"                     = "America/New_York"
-    "FUNCTIONS_WORKER_RUNTIME"              = "python"
-    "APPLICATIONINSIGHTS_CONNECTION_STRING" = azurerm_application_insights.main.connection_string
-    "AzureWebJobsStorage"                   = azurerm_storage_account.storage_account.primary_connection_string
-    "DB_HOST"                               = data.azurerm_mysql_flexible_server.existing.fqdn
-    "DB_NAME"                               = azurerm_mysql_flexible_database.prod.name
-    "DB_USER"                               = var.project_name
-    "MYSQL_SSL_CA_CONTENT"                  = data.http.mysql_ca_cert.response_body
-  }
+  app_settings = merge(
+    {
+      "WEBSITE_TIME_ZONE"                     = "America/New_York"
+      "FUNCTIONS_WORKER_RUNTIME"              = "python"
+      "APPLICATIONINSIGHTS_CONNECTION_STRING" = azurerm_application_insights.main.connection_string
+      "AzureWebJobsStorage"                   = azurerm_storage_account.storage_account.primary_connection_string
+      "DB_HOST"                               = data.azurerm_mysql_flexible_server.existing.fqdn
+      "DB_NAME"                               = azurerm_mysql_flexible_database.prod.name
+      "DB_USER"                               = var.project_name
+      "MYSQL_SSL_CA_CONTENT"                  = data.http.mysql_ca_cert.response_body
+    },
+    { for k, v in local.config.storage_queues : k => v },
+    { for k, v in local.config.storage_tables : k => v }
+  )
 }
 
 # noinspection HILUnresolvedReference
@@ -103,8 +111,8 @@ resource "azurerm_linux_function_app_slot" "stage" {
   name            = "stage"
   function_app_id = azurerm_linux_function_app.main.id
 
-  storage_account_name       = azurerm_storage_account.main.name
-  storage_account_access_key = azurerm_storage_account.main.primary_access_key
+  storage_account_name       = azurerm_storage_account.storage_account.name
+  storage_account_access_key = azurerm_storage_account.storage_account.primary_access_key
 
   identity {
     type = "SystemAssigned"
@@ -120,14 +128,14 @@ resource "azurerm_linux_function_app_slot" "stage" {
     {
       # These settings are sticky to the slot by default
       "DB_HOST"                = data.azurerm_mysql_flexible_server.existing.fqdn
-      "DB_NAME"                = azurerm_mysql_flexible_database.stage.name,
-      "DB_USER"                = "${local.config.package_name}-stage",
-      "TIMER_TRIGGER_SCHEDULE" = "disabled",
+      "DB_NAME"                = azurerm_mysql_flexible_database.stage.name
+      "DB_USER"                = "${local.config.package_name}-stage"
+      "TIMER_TRIGGER_SCHEDULE" = "disabled"
       "MYSQL_SSL_CA_CONTENT"   = data.http.mysql_ca_cert.response_body
     },
     # Override storage resource names for stage dynamically
     { for k, v in local.config.storage_queues : k => "${v}-stage" },
-    { for k, v in local.config.storage_tables : k => "${v}stage" }
+    { for k, v in local.config.storage_tables : k => "${v}-stage" }
   )
 }
 
