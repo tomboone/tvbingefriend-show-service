@@ -12,7 +12,7 @@ os.environ['DB_USER'] = 'test_user'
 os.environ['SQLALCHEMY_CONNECTION_STRING'] = 'sqlite:///:memory:'
 
 from tvbingefriend_show_service.services.show_service import ShowService
-from tvbingefriend_show_service.config import SHOW_DETAILS_QUEUE, SHOWS_INDEX_QUEUE, SHOW_IDS_TABLE
+from tvbingefriend_show_service.config import DETAILS_QUEUE, INDEX_QUEUE, SHOW_IDS_TABLE
 
 
 class TestShowService(unittest.TestCase):
@@ -29,7 +29,7 @@ class TestShowService(unittest.TestCase):
         """Test starting the process of getting all shows."""
         self.service.start_get_all_shows(page=1)
         self.service.storage_service.upload_queue_message.assert_called_once_with(
-            queue_name=SHOWS_INDEX_QUEUE,
+            queue_name=INDEX_QUEUE,
             message={"page": 1}
         )
 
@@ -132,7 +132,7 @@ class TestShowService(unittest.TestCase):
         show_id_msg = {"show_id": 123}
         self.service.queue_show_details(show_id_msg)
         self.service.storage_service.upload_queue_message.assert_called_once_with(
-            queue_name=SHOW_DETAILS_QUEUE,
+            queue_name=DETAILS_QUEUE,
             message=show_id_msg
         )
 

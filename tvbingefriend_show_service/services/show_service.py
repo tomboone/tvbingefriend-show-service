@@ -8,9 +8,9 @@ from tvbingefriend_tvmaze_client.tvmaze_api import TVMazeAPI  # type: ignore
 
 from tvbingefriend_show_service.config import (
     STORAGE_CONNECTION_STRING,
-    SHOW_DETAILS_QUEUE,
+    DETAILS_QUEUE,
     SHOW_IDS_TABLE,
-    SHOWS_INDEX_QUEUE
+    INDEX_QUEUE
 )
 from tvbingefriend_show_service.repos.show_repo import ShowRepository
 from tvbingefriend_show_service.utils import db_session_manager
@@ -37,7 +37,7 @@ class ShowService:
         }
 
         self.storage_service.upload_queue_message(  # upload message to queue
-            queue_name=SHOWS_INDEX_QUEUE,  # queue name
+            queue_name=INDEX_QUEUE,  # queue name
             message=start_message  # message to upload
         )
 
@@ -137,7 +137,7 @@ class ShowService:
             show_id_msg (func.QueueMessage): Show ID message
         """
         self.storage_service.upload_queue_message(  # upload message to queue
-            queue_name=SHOW_DETAILS_QUEUE,  # queue name
+            queue_name=DETAILS_QUEUE,  # queue name
             message=show_id_msg  # message to upload
         )
 

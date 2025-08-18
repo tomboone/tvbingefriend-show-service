@@ -51,9 +51,9 @@ DB_NAME: str = _get_setting("DB_NAME")
 DB_USER: str = _get_setting("DB_USER")
 DB_PASSWORD: str | None = _get_setting("DB_PASSWORD", required=False)
 
-SHOWS_INDEX_QUEUE: str = _get_setting("SHOWS_INDEX_QUEUE", default="index-queue")
-SHOW_DETAILS_QUEUE: str = _get_setting("SHOW_DETAILS_QUEUE", default="details-queue")
+INDEX_QUEUE: str = _get_setting("INDEX_QUEUE", default="index-queue")
+DETAILS_QUEUE: str = _get_setting("DETAILS_QUEUE", default="details-queue")
 
-SHOW_IDS_TABLE: str = _get_setting("SHOW_IDS_TABLE", default="ids-table")
+SHOW_IDS_TABLE: str = _get_setting("SHOW_IDS_TABLE", default="show-ids-table")
 
 UPDATES_NCRON: str = _get_setting("UPDATES_NCRON", default="0 0 2 * * *")
