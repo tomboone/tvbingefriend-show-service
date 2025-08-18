@@ -27,7 +27,7 @@ env:
   TF_VAR_mysql_server_name: ${{ secrets.AZURE_MYSQL_SERVER }}
   TF_WORKING_DIR: ./terraform
   ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-  PYTHON_VERSION: '3.10' # Define Python version once
+  PYTHON_VERSION: '3.12' # Define Python version once
 
 jobs:
   terraform:
@@ -59,21 +59,17 @@ jobs:
             -backend-config="container_name=tfstate" \
             -backend-config="key=tvbingefriend-show-service.terraform.tfstate"
 
-      - name: Terraform Plan
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform plan -out=tfplan
-
       - name: Terraform Apply
         working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform apply -auto-approve tfplan
+        run: terraform apply -auto-approve
 
-      - name: Get Terraform Outputs
+      - name: Get Function App Name from Terraform State
         id: get_outputs
         working-directory: ${{ env.TF_WORKING_DIR }}
-        env:
-          TF_LOG: ERROR
         run: |
-          echo "function_app_name=$(terraform output -raw function_app_name)" >> $GITHUB_OUTPUT
+          state_json=$(terraform show -json)
+          app_name=$(echo "$state_json" | jq -r '.values.root_module.resources[] | select(.address=="azurerm_linux_function_app.main") | .values.name')
+          echo "function_app_name=$app_name" >> "$GITHUB_OUTPUT"
 
       - name: Grant Database Access
         id: grant_db_access
@@ -128,8 +124,9 @@ jobs:
 
       - name: Construct deployment artifact
         run: |
+          VENV_PATH=$(poetry env info --path)
           mkdir -p deployment_package/.python_packages/lib/site-packages
-          cp -r ./.venv/lib/python${{ env.PYTHON_VERSION }}/site-packages/* deployment_package/.python_packages/lib/site-packages/
+          cp -r $VENV_PATH/lib/python*/site-packages/* deployment_package/.python_packages/lib/site-packages/
           cp function_app.py host.json deployment_package/
           cp -r alembic tvbingefriend_show_service deployment_package/
 
