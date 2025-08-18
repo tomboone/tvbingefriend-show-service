@@ -59,21 +59,17 @@ jobs:
             -backend-config="container_name=tfstate" \
             -backend-config="key=tvbingefriend-show-service.terraform.tfstate"
 
-      - name: Terraform Plan
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform plan -out=tfplan
-
       - name: Terraform Apply
         working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform apply -auto-approve tfplan
+        run: terraform apply -auto-approve
 
-      - name: Get Function App Name from Terraform Plan
+      - name: Get Function App Name from Terraform State
         id: get_outputs
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
-          plan_json_raw=$(terraform show -json tfplan)
-          plan_json_clean=$(echo "$plan_json_raw" | awk '/^{/{f=1} f')
-          app_name=$(echo "$plan_json_clean" | jq -r '.planned_values.root_module.resources[] | select(.address=="azurerm_linux_function_app.main") | .values.name')
+          state_json_raw=$(terraform show -json 2>/dev/null)
+          state_json_clean=$(echo "$state_json_raw" | perl -ne 'print if /^{/../}$/')
+          app_name=$(echo "$state_json_clean" | jq -r '.values.root_module.resources[] | select(.address=="azurerm_linux_function_app.main") | .values.name')
           echo "function_app_name=$app_name" >> "$GITHUB_OUTPUT"
 
       - name: Grant Database Access
