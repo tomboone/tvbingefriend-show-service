@@ -1,0 +1,194 @@
+#file: noinspection UndefinedAction
+name: Terraform, Build, and Deploy to Stage
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'terraform/**'
+      - 'tvbingefriend_show_service/**'
+      - 'pyproject.toml'
+      - 'alembic/**'
+      - 'function_app.py'
+      - '.github/workflows/build-deploy.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TF_VAR_resource_group_name: ${{ secrets.AZURE_RESOURCE_GROUP }}
+  TF_VAR_app_service_plan_name: ${{ secrets.AZURE_APP_SERVICE_PLAN }}
+  TF_VAR_mysql_server_name: ${{ secrets.AZURE_MYSQL_SERVER }}
+  TF_WORKING_DIR: ./terraform
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  PYTHON_VERSION: '3.10' # Define Python version once
+
+jobs:
+  terraform:
+    name: Terraform
+    runs-on: ubuntu-latest
+    outputs:
+      function_app_name: ${{ steps.get_outputs.outputs.function_app_name }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Log in to Azure
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=${{ secrets.TF_STATE_RG }}" \
+            -backend-config="storage_account_name=${{ secrets.TF_STATE_SA }}" \
+            -backend-config="container_name=tfstate" \
+            -backend-config="key=tvbingefriend-show-service.terraform.tfstate"
+
+      - name: Terraform Plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform apply -auto-approve tfplan
+
+      - name: Get Terraform Outputs
+        id: get_outputs
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          echo "function_app_name=$(terraform output -raw function_app_name)" >> $GITHUB_OUTPUT
+
+      - name: Configure Database
+        id: configure_db
+        run: |
+          echo "Configuring database for ${{ steps.get_outputs.outputs.function_app_name }}..."
+          RG_NAME="${{ secrets.AZURE_RESOURCE_GROUP }}"
+          MYSQL_SERVER_NAME="${{ secrets.AZURE_MYSQL_SERVER }}"
+          FUNCTION_APP_NAME="${{ steps.get_outputs.outputs.function_app_name }}"
+
+          # Get Outbound IPs
+          PROD_IPS=$(az functionapp show --name $FUNCTION_APP_NAME --resource-group $RG_NAME --query "possibleOutboundIpAddresses" --output tsv | tr ',' ' ')
+          STAGE_IPS=$(az functionapp show --name $FUNCTION_APP_NAME --slot stage --resource-group $RG_NAME --query "possibleOutboundIpAddresses" --output tsv | tr ',' ' ')
+          ALL_IPS=$(echo $PROD_IPS $STAGE_IPS | tr ' ' '\n' | sort -u)
+
+          # Create Firewall Rules
+          for IP in $ALL_IPS; do
+            RULE_NAME="allow-function-ip-${IP//./-}"
+            echo "Creating/updating firewall rule: $RULE_NAME"
+            az mysql flexible-server firewall-rule create --resource-group "$RG_NAME" --name "$MYSQL_SERVER_NAME" --rule-name "$RULE_NAME" --start-ip-address "$IP" --end-ip-address "$IP" --output none
+          done
+
+          # Get Managed Identity IDs
+          PROD_MI_ID=$(az functionapp identity show --name $FUNCTION_APP_NAME --resource-group $RG_NAME --query principalId -o tsv)
+          STAGE_MI_ID=$(az functionapp identity show --name $FUNCTION_APP_NAME --slot stage --resource-group $RG_NAME --query principalId -o tsv)
+          
+          # Get DB Info from App Settings
+          PROD_DB_NAME=$(az functionapp config appsettings list --name $FUNCTION_APP_NAME --resource-group $RG_NAME --query "[?name=='DB_NAME'].value" -o tsv)
+          STAGE_DB_NAME=$(az functionapp config appsettings list --name $FUNCTION_APP_NAME --slot stage --resource-group $RG_NAME --query "[?name=='DB_NAME'].value" -o tsv)
+          PROD_DB_USER=$(az functionapp config appsettings list --name $FUNCTION_APP_NAME --resource-group $RG_NAME --query "[?name=='DB_USER'].value" -o tsv)
+          STAGE_DB_USER=$(az functionapp config appsettings list --name $FUNCTION_APP_NAME --slot stage --resource-group $RG_NAME --query "[?name=='DB_USER'].value" -o tsv)
+
+          # Grant DB Access
+          echo "Granting access to Production DB: $PROD_DB_NAME"
+          PROD_SQL="DROP USER IF EXISTS '$PROD_DB_USER'; CREATE AADUSER '$PROD_DB_USER' IDENTIFIED BY '$PROD_MI_ID'; GRANT ALL PRIVILEGES ON \`$PROD_DB_NAME\`.* TO '$PROD_DB_USER'@'%';"
+          az mysql flexible-server execute --name "$MYSQL_SERVER_NAME" --admin-user "${{ secrets.MYSQL_ADMIN_USER }}" --admin-password "${{ secrets.MYSQL_ADMIN_PASSWORD }}" --database-name "$PROD_DB_NAME" --sql "$PROD_SQL"
+
+          echo "Granting access to Stage DB: $STAGE_DB_NAME"
+          STAGE_SQL="DROP USER IF EXISTS '$STAGE_DB_USER'; CREATE AADUSER '$STAGE_DB_USER' IDENTIFIED BY '$STAGE_MI_ID'; GRANT ALL PRIVILEGES ON \`$STAGE_DB_NAME\`.* TO '$STAGE_DB_USER'@'%';"
+          az mysql flexible-server execute --name "$MYSQL_SERVER_NAME" --admin-user "${{ secrets.MYSQL_ADMIN_USER }}" --admin-password "${{ secrets.MYSQL_ADMIN_PASSWORD }}" --database-name "$STAGE_DB_NAME" --sql "$STAGE_SQL"
+
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: [terraform]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+
+      - name: Configure Poetry to build locally
+        run: poetry config virtualenvs.in-project true
+
+      - name: Build with Poetry
+        run: poetry install --without dev
+
+      - name: Construct deployment artifact
+        run: |
+          mkdir -p deployment_package/.python_packages/lib/site-packages
+          cp -r ./.venv/lib/python${{ env.PYTHON_VERSION }}/site-packages/* deployment_package/.python_packages/lib/site-packages/
+          cp function_app.py host.json deployment_package/
+          cp -r alembic tvbingefriend_show_service deployment_package/
+
+      - name: Zip artifact for deployment
+        run: |
+          cd deployment_package
+          zip -r ../python-app.zip .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-app
+          path: python-app.zip
+
+  deploy-stage:
+    name: Deploy to Stage
+    runs-on: ubuntu-latest
+    needs: [build, terraform]
+    environment: staging
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: python-app
+
+      - name: Log in to Azure
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Unzip deployment artifact
+        run: unzip python-app.zip -d app
+
+      - name: Deploy to Stage Slot
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ needs.terraform.outputs.function_app_name }}
+          slot-name: 'stage'
+          package: 'app'
+
+      - name: Run Alembic Migrations on Stage DB
+        run: |
+          echo "Fetching database connection details from stage slot..."
+          RG_NAME="${{ env.TF_VAR_resource_group_name }}"
+          FUNCTION_APP_NAME="${{ needs.terraform.outputs.function_app_name }}"
+          
+          APP_SETTINGS=$(az functionapp config appsettings list --name $FUNCTION_APP_NAME --slot stage --resource-group $RG_NAME)
+          
+          export DB_HOST=$(echo $APP_SETTINGS | jq -r '.[] | select(.name=="DB_HOST").value')
+          export DB_NAME=$(echo $APP_SETTINGS | jq -r '.[] | select(.name=="DB_NAME").value')
+          export DB_USER=$(echo $APP_SETTINGS | jq -r '.[] | select(.name=="DB_USER").value')
+          export MYSQL_SSL_CA_CONTENT=$(echo $APP_SETTINGS | jq -r '.[] | select(.name=="MYSQL_SSL_CA_CONTENT").value')
+
+          echo "Running Alembic migrations on Stage DB: $DB_NAME"
+          export PYTHONPATH=$(pwd)/app/.python_packages/lib/site-packages
+          python -m alembic -c app/alembic.ini upgrade head

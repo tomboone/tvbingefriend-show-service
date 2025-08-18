@@ -17,6 +17,10 @@ data "external" "config" {
   program = [local.python_executable, "${path.module}/scripts/get_tf_vars.py"]
 }
 
+data "http" "mysql_ca_cert" {
+  url = "https://cacerts.digicert.com/DigiCertGlobalRootG2.crt.pem"
+}
+
 data "azurerm_resource_group" "existing" {
   name = var.resource_group_name
 }
@@ -117,6 +121,7 @@ resource "azurerm_linux_function_app" "main" {
     "DB_HOST"                               = data.azurerm_mysql_flexible_server.existing.fqdn
     "DB_NAME"                               = azurerm_mysql_flexible_database.prod.name
     "DB_USER"                               = local.config.package_name
+    "MYSQL_SSL_CA_CONTENT"                  = data.http.mysql_ca_cert.response_body
   }
 }
 
@@ -134,7 +139,7 @@ resource "azurerm_linux_function_app_slot" "stage" {
 
   site_config {
     application_stack {
-      python_version = "3.10"
+      python_version = "3.io"
     }
   }
 
@@ -144,7 +149,8 @@ resource "azurerm_linux_function_app_slot" "stage" {
       "DB_HOST"                = data.azurerm_mysql_flexible_server.existing.fqdn
       "DB_NAME"                = azurerm_mysql_flexible_database.stage.name,
       "DB_USER"                = "${local.config.package_name}/stage",
-      "TIMER_TRIGGER_SCHEDULE" = "disabled"
+      "TIMER_TRIGGER_SCHEDULE" = "disabled",
+      "MYSQL_SSL_CA_CONTENT"   = data.http.mysql_ca_cert.response_body
     },
     # Override storage resource names for stage dynamically
     { for k, v in local.config.storage_queues : k => "${v}-stage" },
@@ -164,17 +170,8 @@ resource "azurerm_mysql_flexible_database" "stage" {
   name                = "${local.config.package_name_db}-stage"
   resource_group_name = data.azurerm_resource_group.existing.name
   server_name         = data.azurerm_mysql_flexible_server.existing.name
-  charset             = "utf8mb4-unicode_ci"
+  charset             = "utf8mb4"
   collation           = "utf8mb4_unicode_ci"
-}
-
-resource "azurerm_mysql_flexible_server_firewall_rule" "function_access" {
-  for_each            = toset(azurerm_linux_function_app.main.possible_outbound_ip_address_list)
-  name                = "allow-function-outbound-${replace(each.value, ".", "-")}"
-  resource_group_name = data.azurerm_resource_group.existing.name
-  server_name         = data.azurerm_mysql_flexible_server.existing.name
-  start_ip_address    = each.value
-  end_ip_address      = each.value
 }
 
 # --- IMPORTANT --- #
