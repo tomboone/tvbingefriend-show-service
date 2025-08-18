@@ -139,7 +139,7 @@ resource "azurerm_linux_function_app_slot" "stage" {
 
   site_config {
     application_stack {
-      python_version = "3.io"
+      python_version = "3.12"
     }
   }
 
@@ -148,7 +148,7 @@ resource "azurerm_linux_function_app_slot" "stage" {
       # These settings are sticky to the slot by default
       "DB_HOST"                = data.azurerm_mysql_flexible_server.existing.fqdn
       "DB_NAME"                = azurerm_mysql_flexible_database.stage.name,
-      "DB_USER"                = "${local.config.package_name}/stage",
+      "DB_USER"                = "${local.config.package_name}-stage",
       "TIMER_TRIGGER_SCHEDULE" = "disabled",
       "MYSQL_SSL_CA_CONTENT"   = data.http.mysql_ca_cert.response_body
     },
