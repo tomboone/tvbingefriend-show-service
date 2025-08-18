@@ -19,7 +19,6 @@ def get_config_defaults(config_path):
     """Parses config.py to get default storage names as maps."""
     defaults = {
         "storage_queues": {},
-        "storage_containers": {},
         "storage_tables": {}
     }
     with open(config_path) as f:
@@ -43,8 +42,6 @@ def get_config_defaults(config_path):
                             if default_value:
                                 if var_name.endswith("_QUEUE"):
                                     defaults["storage_queues"][var_name] = default_value
-                                elif var_name.endswith("_CONTAINER"):
-                                    defaults["storage_containers"][var_name] = default_value
                                 elif var_name.endswith("_TABLE"):
                                     defaults["storage_tables"][var_name] = default_value
     return defaults
@@ -65,7 +62,7 @@ def main():
     
     # Shorten the package name
     short_package_name = package_name.replace(
-        'tvbingefriend', 'tbf'
+        'tvbingefriend', 'tvbf'
     ).replace('service', 'svc')
     
     config_defaults = get_config_defaults(config_path)
@@ -79,7 +76,6 @@ def main():
         "package_name_safe": package_name_safe,
         "package_name_db": package_name_db,
         "storage_queues": json.dumps(config_defaults["storage_queues"]),
-        "storage_containers": json.dumps(config_defaults["storage_containers"]),
         "storage_tables": json.dumps(config_defaults["storage_tables"]),
     }
 

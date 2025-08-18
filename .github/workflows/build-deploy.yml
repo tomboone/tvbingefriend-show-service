@@ -70,6 +70,8 @@ jobs:
       - name: Get Terraform Outputs
         id: get_outputs
         working-directory: ${{ env.TF_WORKING_DIR }}
+        env:
+          TF_LOG: ERROR
         run: |
           echo "function_app_name=$(terraform output -raw function_app_name)" >> $GITHUB_OUTPUT
 
@@ -117,6 +119,9 @@ jobs:
 
       - name: Configure Poetry to build locally
         run: poetry config virtualenvs.in-project true
+
+      - name: Configure private repository authentication
+        run: poetry config http-basic.TBC_Feed pat ${{ secrets.AZURE_DEVOPS_PAT }}
 
       - name: Build with Poetry
         run: poetry install --without dev

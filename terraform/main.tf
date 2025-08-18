@@ -4,12 +4,11 @@ locals {
 
   # Decode the JSON strings from the external data source into proper maps.
   config = {
-    package_name       = data.external.config.result.package_name
-    package_name_safe  = data.external.config.result.package_name_safe
-    package_name_db    = data.external.config.result.package_name_db
-    storage_queues     = jsondecode(data.external.config.result.storage_queues)
-    storage_containers = jsondecode(data.external.config.result.storage_containers)
-    storage_tables     = jsondecode(data.external.config.result.storage_tables)
+    package_name      = data.external.config.result.package_name
+    package_name_safe = data.external.config.result.package_name_safe
+    package_name_db   = data.external.config.result.package_name_db
+    storage_queues    = jsondecode(data.external.config.result.storage_queues)
+    storage_tables    = jsondecode(data.external.config.result.storage_tables)
   }
 }
 
@@ -59,20 +58,6 @@ resource "azurerm_storage_queue" "stage" {
   for_each             = local.config.storage_queues
   name                 = "${each.value}-stage"
   storage_account_name = azurerm_storage_account.main.name
-}
-
-resource "azurerm_storage_container" "main" {
-  for_each              = local.config.storage_containers
-  name                  = each.value
-  storage_account_id    = azurerm_storage_account.main.id
-  container_access_type = "private"
-}
-
-resource "azurerm_storage_container" "stage" {
-  for_each              = local.config.storage_containers
-  name                  = "${each.value}-stage"
-  storage_account_id    = azurerm_storage_account.main.id
-  container_access_type = "private"
 }
 
 resource "azurerm_storage_table" "main" {
