@@ -73,25 +73,13 @@ jobs:
         run: |
           echo "function_app_name=$(terraform output -raw function_app_name)" >> $GITHUB_OUTPUT
 
-      - name: Configure Database
-        id: configure_db
+      - name: Grant Database Access
+        id: grant_db_access
         run: |
-          echo "Configuring database for ${{ steps.get_outputs.outputs.function_app_name }}..."
+          echo "Granting database access for ${{ steps.get_outputs.outputs.function_app_name }}..."
           RG_NAME="${{ secrets.AZURE_RESOURCE_GROUP }}"
           MYSQL_SERVER_NAME="${{ secrets.AZURE_MYSQL_SERVER }}"
           FUNCTION_APP_NAME="${{ steps.get_outputs.outputs.function_app_name }}"
-
-          # Get Outbound IPs
-          PROD_IPS=$(az functionapp show --name $FUNCTION_APP_NAME --resource-group $RG_NAME --query "possibleOutboundIpAddresses" --output tsv | tr ',' ' ')
-          STAGE_IPS=$(az functionapp show --name $FUNCTION_APP_NAME --slot stage --resource-group $RG_NAME --query "possibleOutboundIpAddresses" --output tsv | tr ',' ' ')
-          ALL_IPS=$(echo $PROD_IPS $STAGE_IPS | tr ' ' '\n' | sort -u)
-
-          # Create Firewall Rules
-          for IP in $ALL_IPS; do
-            RULE_NAME="allow-function-ip-${IP//./-}"
-            echo "Creating/updating firewall rule: $RULE_NAME"
-            az mysql flexible-server firewall-rule create --resource-group "$RG_NAME" --name "$MYSQL_SERVER_NAME" --rule-name "$RULE_NAME" --start-ip-address "$IP" --end-ip-address "$IP" --output none
-          done
 
           # Get Managed Identity IDs
           PROD_MI_ID=$(az functionapp identity show --name $FUNCTION_APP_NAME --resource-group $RG_NAME --query principalId -o tsv)
@@ -115,7 +103,6 @@ jobs:
   build:
     name: Build Application
     runs-on: ubuntu-latest
-    needs: [terraform]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
