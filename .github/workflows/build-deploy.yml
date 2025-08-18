@@ -72,6 +72,9 @@ jobs:
           app_name=$(echo "$state_json_clean" | jq -r '.values.root_module.resources[] | select(.address=="azurerm_linux_function_app.main") | .values.name')
           echo "function_app_name=$app_name" >> "$GITHUB_OUTPUT"
 
+      - name: Install Azure CLI RDBMS-Connect Extension
+        run: az extension add --name rdbms-connect
+
       - name: Grant Database Access
         id: grant_db_access
         run: |
@@ -92,11 +95,11 @@ jobs:
 
           # Grant DB Access
           echo "Granting access to Production DB: $PROD_DB_NAME"
-          PROD_SQL="DROP USER IF EXISTS '$PROD_DB_USER'; CREATE AADUSER '$PROD_DB_USER' IDENTIFIED BY '$PROD_MI_ID'; GRANT ALL PRIVILEGES ON $PROD_DB_NAME.* TO '$PROD_DB_USER'@'%';"
+          PROD_SQL=$(printf "DROP USER IF EXISTS '%s'; CREATE AADUSER '%s' IDENTIFIED BY '%s'; GRANT ALL PRIVILEGES ON %s.* TO '%s'@'%%';" "$PROD_DB_USER" "$PROD_DB_USER" "$PROD_MI_ID" "$PROD_DB_NAME" "$PROD_DB_USER")
           az mysql flexible-server execute --name "$MYSQL_SERVER_NAME" --admin-user "${{ secrets.MYSQL_ADMIN_USER }}" --admin-password "${{ secrets.MYSQL_ADMIN_PASSWORD }}" --database-name "$PROD_DB_NAME" --sql "$PROD_SQL"
 
           echo "Granting access to Stage DB: $STAGE_DB_NAME"
-          STAGE_SQL="DROP USER IF EXISTS '$STAGE_DB_USER'; CREATE AADUSER '$STAGE_DB_USER' IDENTIFIED BY '$STAGE_MI_ID'; GRANT ALL PRIVILEGES ON $STAGE_DB_NAME.* TO '$STAGE_DB_USER'@'%';"
+          STAGE_SQL=$(printf "DROP USER IF EXISTS '%s'; CREATE AADUSER '%s' IDENTIFIED BY '%s'; GRANT ALL PRIVILEGES ON %s.* TO '%s'@'%%';" "$STAGE_DB_USER" "$STAGE_DB_USER" "$STAGE_MI_ID" "$STAGE_DB_NAME" "$STAGE_DB_USER")
           az mysql flexible-server execute --name "$MYSQL_SERVER_NAME" --admin-user "${{ secrets.MYSQL_ADMIN_USER }}" --admin-password "${{ secrets.MYSQL_ADMIN_PASSWORD }}" --database-name "$STAGE_DB_NAME" --sql "$STAGE_SQL"
 
   build:
