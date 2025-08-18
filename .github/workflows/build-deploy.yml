@@ -13,6 +13,10 @@ on:
       - 'function_app.py'
       - '.github/workflows/build-deploy.yml'
 
+permissions:
+  id-token: write
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
