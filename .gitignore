@@ -12,6 +12,7 @@ override.tf.json
 *_override.tf
 backend.hcl
 *.sh
+tfplan
 
 bin
 obj
