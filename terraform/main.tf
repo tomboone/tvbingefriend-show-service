@@ -5,6 +5,7 @@ data "http" "digicert_global_root_g2" {
 
 # Microsoft RSA Root Certificate Authority 2017 certificate (embedded PEM format)
 locals {
+  service_name: "tvbf-show-service"
   microsoft_rsa_root_2017_pem = <<-EOT
 -----BEGIN CERTIFICATE-----
 MIIFqDCCA5CgAwIBAgIQHtOXCX95q3YKHD0uKsEafjANBgkqhkiG9w0BAQwFADBl
@@ -82,7 +83,7 @@ data "azurerm_log_analytics_workspace" "existing" {
 }
 
 resource "azurerm_application_insights" "main" {
-  name                = var.service_name
+  name                = local.service_name
   resource_group_name = data.azurerm_log_analytics_workspace.existing.resource_group_name
   location            = data.terraform_remote_state.shared.outputs.location
   workspace_id        = data.azurerm_log_analytics_workspace.existing.id
@@ -90,7 +91,7 @@ resource "azurerm_application_insights" "main" {
 }
 
 resource "azurerm_mysql_flexible_database" "prod" {
-  name                = var.service_name
+  name                = local.service_name
   resource_group_name = data.azurerm_mysql_flexible_server.existing.resource_group_name
   server_name         = data.azurerm_mysql_flexible_server.existing.name
   charset             = "utf8mb4"
@@ -98,7 +99,7 @@ resource "azurerm_mysql_flexible_database" "prod" {
 }
 
 resource "azurerm_mysql_flexible_database" "stage" {
-  name                = "${var.service_name}-stage"
+  name                = "${local.service_name}-stage"
   resource_group_name = data.azurerm_mysql_flexible_server.existing.resource_group_name
   server_name         = data.azurerm_mysql_flexible_server.existing.name
   charset             = "utf8mb4"
@@ -118,14 +119,14 @@ resource "random_password" "stage_db_password" {
 
 # Create MySQL user for production with read access
 resource "mysql_user" "prod_user" {
-  user               = "${var.service_name}_user"
+  user               = "${local.service_name}_user"
   host               = "%"
   plaintext_password = random_password.prod_db_password.result
 }
 
 # Create MySQL user for staging with read access
 resource "mysql_user" "stage_user" {
-  user               = "${var.service_name}_stage_user"
+  user               = "${local.service_name}_stage_user"
   host               = "%"
   plaintext_password = random_password.stage_db_password.result
 }
@@ -147,7 +148,7 @@ resource "mysql_grant" "stage_grant" {
 }
 
 resource "azurerm_linux_function_app" "main" {
-  name                       = var.service_name
+  name                       = local.service_name
   resource_group_name        = data.azurerm_resource_group.existing.name
   location                   = data.terraform_remote_state.shared.outputs.location
   service_plan_id            = data.terraform_remote_state.shared.outputs.app_service_plan_id

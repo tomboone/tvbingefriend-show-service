@@ -1,7 +1,3 @@
-variable "service_name" {
-  type = string
-}
-
 variable "tf_shared_resource_group_name" {
   type = string
 }
