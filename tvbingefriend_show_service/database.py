@@ -32,6 +32,7 @@ def get_engine() -> Engine:
                 cert_file.write(ssl_ca_content)
                 _cert_file_path = cert_file.name
                 connect_args['ssl_ca'] = _cert_file_path
+                connect_args['ssl_disabled'] = False  # type: ignore
 
         _db_engine = create_engine(
             connection_string,
