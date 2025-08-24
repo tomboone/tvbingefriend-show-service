@@ -17,7 +17,12 @@
   },
   "extensions": {
     "queues": {
-      "messageEncoding": "none"
+      "messageEncoding": "none",
+      "maxPollingInterval": "00:00:02",
+      "batchSize": 1,
+      "maxDequeueCount": 3,
+      "newBatchThreshold": 1
     }
-  }
+  },
+  "functionTimeout": "00:05:00"
 }
