@@ -84,6 +84,9 @@ jobs:
         
         echo "✅ Successfully swapped stage -> production"
 
+    - name: Configure private repository authentication
+      run: poetry config http-basic.TBC_Feed pat ${{ secrets.AZURE_DEVOPS_PAT }}
+
     - name: Install Python dependencies for migration
       run: poetry install --only=main
 
