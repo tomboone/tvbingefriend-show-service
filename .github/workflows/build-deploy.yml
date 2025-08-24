@@ -154,14 +154,22 @@ jobs:
         run: |
           echo "Fetching database connection string from stage slot..."
           FUNCTION_APP_NAME="${{ needs.terraform.outputs.function_app_name }}"
-          # Get resource group name from shared state
-          RG_NAME=$(az functionapp show --name $FUNCTION_APP_NAME --query "resourceGroup" -o tsv)
+          
+          # Get resource group name from the function app
+          RG_NAME=$(az functionapp show --name "$FUNCTION_APP_NAME" --query "resourceGroup" -o tsv)
+          
+          if [[ -z "$RG_NAME" ]]; then
+            echo "::error::Failed to retrieve resource group name for function app: $FUNCTION_APP_NAME"
+            exit 1
+          fi
+          
+          echo "Found resource group: $RG_NAME"
           
           # Get the complete connection string from the deployed Function App
           CONNECTION_STRING=$(az functionapp config appsettings list \
-            --name $FUNCTION_APP_NAME \
+            --name "$FUNCTION_APP_NAME" \
             --slot stage \
-            --resource-group $RG_NAME \
+            --resource-group "$RG_NAME" \
             --query "[?name=='SQLALCHEMY_CONNECTION_STRING'].value" \
             --output tsv)
           
