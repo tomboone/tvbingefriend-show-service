@@ -10,6 +10,7 @@ on:
       - 'tvbingefriend_show_service/**'
       - 'pyproject.toml'
       - 'alembic/**'
+      - 'alembic.ini'
       - 'function_app.py'
       - '.github/workflows/build-deploy.yml'
 
@@ -111,7 +112,7 @@ jobs:
           VENV_PATH=$(poetry env info --path)
           mkdir -p deployment_package/.python_packages/lib/site-packages
           cp -r $VENV_PATH/lib/python*/site-packages/* deployment_package/.python_packages/lib/site-packages/
-          cp function_app.py host.json deployment_package/
+          cp function_app.py host.json alembic.ini deployment_package/
           cp -r alembic tvbingefriend_show_service deployment_package/
 
       - name: Zip artifact for deployment
@@ -162,13 +163,11 @@ jobs:
           echo "Using resource group: $RG_NAME"
           echo "Function app name: $FUNCTION_APP_NAME"
           
-          # Get settings from the stage slot
           SETTINGS=$(az functionapp config appsettings list \
             --name "$FUNCTION_APP_NAME" \
             --slot "stage" \
             --resource-group "$RG_NAME")
             
-          # Extract the connection string
           CONNECTION_STRING=$(echo "$SETTINGS" | jq -r '.[] | select(.name=="SQLALCHEMY_CONNECTION_STRING") | .value')
           
           if [[ -z "$CONNECTION_STRING" || "$CONNECTION_STRING" == "null" ]]; then
@@ -180,8 +179,4 @@ jobs:
           export PYTHONPATH=$(pwd)/app/.python_packages/lib/site-packages
           export SQLALCHEMY_CONNECTION_STRING="$CONNECTION_STRING"
           
-          # Change directory to where the code and alembic.ini are located
-          cd app
-          
-          # Now run alembic from within the app directory
           python -m alembic -c alembic.ini upgrade head
