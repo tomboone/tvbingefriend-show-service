@@ -1,7 +1,6 @@
 output "function_app_name" {
   description = "The name of the main Function App."
   value       = azurerm_linux_function_app.main.name
-  sensitive   = false
 }
 
 output "prod_db_name" {
