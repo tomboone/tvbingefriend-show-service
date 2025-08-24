@@ -23,8 +23,10 @@ env:
   ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
   ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
   ARM_USE_OIDC: true
-  TF_VAR_tf_shared_resource_group_name: ${{ secrets.TF_SHARED_RESOURCE_GROUP_NAME }}
-  TF_VAR_tf_shared_state_storage_account_name: ${{ secrets.TF_SHARED_STATE_STORAGE_ACCOUNT_NAME }}
+  TF_VAR_tf_shared_resource_group_name: ${{ secrets.TF_STATE_RESOURCE_GROUP_NAME }}
+  TF_VAR_tf_shared_storage_account_name: ${{ secrets.TF_STATE_STORAGE_ACCOUNT_NAME }}
+  TF_VAR_tf_shared_container_name: ${{ secrets.TF_STATE_CONTAINER_NAME }}
+  TF_VAR_tf_shared_key: ${{ secrets.TF_STATE_KEY }}
   TF_VAR_mysql_admin_username: ${{ secrets.MYSQL_ADMIN_USERNAME }}
   TF_VAR_mysql_admin_password: ${{ secrets.MYSQL_ADMIN_PASSWORD }}
 
@@ -68,9 +70,9 @@ jobs:
       run: |
         terraform init \
           -backend-config="resource_group_name=${{ env.TF_VAR_tf_shared_resource_group_name }}" \
-          -backend-config="storage_account_name=${{ env.TF_VAR_tf_shared_state_storage_account_name }}" \
-          -backend-config="container_name=terraform-state" \
-          -backend-config="key=tvbingefriend-show-service.tfstate"
+          -backend-config="storage_account_name=${{ env.TF_VAR_tf_shared_storage_account_name }}" \
+          -backend-config="container_name=${{ env.TF_VAR_tf_shared_container_name }}" \
+          -backend-config="key=${{ env.TF_VAR_tf_shared_key }}"
         
         FUNCTION_APP_NAME=$(terraform output -raw function_app_name)
         RG_NAME=$(terraform output -raw function_app_resource_group_name)
