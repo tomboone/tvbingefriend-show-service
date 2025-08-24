@@ -151,19 +151,20 @@ jobs:
           package: 'app'
 
       - name: Run Alembic Migrations on Stage DB
+        env:
+          TF_VAR_tf_shared_resource_group_name: ${{ secrets.TF_SHARED_RESOURCE_GROUP_NAME }}
+          TF_VAR_tf_shared_storage_account_name: ${{ secrets.TF_SHARED_STORAGE_ACCOUNT_NAME }}
+          TF_VAR_tf_shared_container_name: ${{ secrets.TF_SHARED_CONTAINER_NAME }}
+          TF_VAR_tf_shared_key: ${{ secrets.TF_SHARED_KEY }}
         run: |
           echo "Fetching database connection string from stage slot..."
           FUNCTION_APP_NAME="${{ needs.terraform.outputs.function_app_name }}"
           
-          # Get resource group name from the function app
-          RG_NAME=$(az functionapp show --name "$FUNCTION_APP_NAME" --query "resourceGroup" -o tsv)
+          # Use the resource group name from shared Terraform state
+          RG_NAME="${{ secrets.TF_SHARED_RESOURCE_GROUP_NAME }}"
           
-          if [[ -z "$RG_NAME" ]]; then
-            echo "::error::Failed to retrieve resource group name for function app: $FUNCTION_APP_NAME"
-            exit 1
-          fi
-          
-          echo "Found resource group: $RG_NAME"
+          echo "Using resource group: $RG_NAME"
+          echo "Function app name: $FUNCTION_APP_NAME"
           
           # Get the complete connection string from the deployed Function App
           CONNECTION_STRING=$(az functionapp config appsettings list \
