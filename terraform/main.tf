@@ -172,6 +172,7 @@ resource "azurerm_linux_function_app" "main" {
     "INDEX_QUEUE"                  = local.storage_queues["index-queue"]
     "DETAILS_QUEUE"                = local.storage_queues["details-queue"]
     "SHOW_IDS_TABLE"               = local.storage_tables["showidstable"]
+    "UPDATES_NCRON"                = "0 0 2 * * *"
   }
 
   sticky_settings {
@@ -180,7 +181,8 @@ resource "azurerm_linux_function_app" "main" {
       "SQLALCHEMY_CONNECTION_STRING",
       "INDEX_QUEUE",
       "DETAILS_QUEUE",
-      "SHOW_IDS_TABLE"
+      "SHOW_IDS_TABLE",
+      "UPDATES_NCRON"
     ]
   }
 }
@@ -210,6 +212,7 @@ resource "azurerm_linux_function_app_slot" "stage" {
     "INDEX_QUEUE"                  = local.storage_queues["index-queue-stage"]
     "DETAILS_QUEUE"                = local.storage_queues["details-queue-stage"]
     "SHOW_IDS_TABLE"               = local.storage_tables["showidstablestage"]
+    "UPDATES_NCRON"                = "0 0 0 1 1 *"
   }
 }
 
