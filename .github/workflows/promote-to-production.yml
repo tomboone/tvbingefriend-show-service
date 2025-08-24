@@ -3,16 +3,6 @@ name: Promote Stage to Production
 
 on:
   workflow_dispatch:
-    inputs:
-      confirm_promotion:
-        description: 'Type "PROMOTE" to confirm you want to swap slots and run production migrations'
-        required: true
-        type: string
-      skip_migrations:
-        description: 'Skip database migrations (use only if no schema changes)'
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   id-token: write
@@ -36,14 +26,6 @@ jobs:
     environment: production
     
     steps:
-    - name: Validate confirmation input
-      run: |
-        if [[ "${{ github.event.inputs.confirm_promotion }}" != "PROMOTE" ]]; then
-          echo "::error::You must type 'PROMOTE' to confirm the promotion"
-          exit 1
-        fi
-        echo "✅ Promotion confirmed"
-
     - name: Checkout code
       uses: actions/checkout@v4
 
@@ -96,8 +78,7 @@ jobs:
         
         echo "✅ Successfully swapped stage -> production"
 
-    - name: Run production database migrations  
-      if: ${{ !inputs.skip_migrations }}
+    - name: Run production database migrations
       run: |
         echo "Fetching database connection string from production slot..."
         echo "Using resource group: ${{ env.RG_NAME }}"
@@ -154,7 +135,7 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "- **Function App**: ${{ env.FUNCTION_APP_NAME }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Resource Group**: ${{ env.RG_NAME }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Migrations**: ${{ inputs.skip_migrations && 'Skipped' || 'Executed' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Migrations**: Executed" >> $GITHUB_STEP_SUMMARY
         echo "- **Status**: ${{ job.status == 'success' && '✅ Success' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         if [[ "${{ job.status }}" == "success" ]]; then
