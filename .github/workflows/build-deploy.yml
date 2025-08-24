@@ -73,8 +73,17 @@ jobs:
         id: get_outputs
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
-          APP_NAME=$(terraform output -raw function_app_name | tail -n 1)
-          RG_NAME=$(terraform output -raw function_app_resource_group_name | tail -n 1)
+          # Get all outputs in JSON format to avoid parsing issues
+          TF_OUTPUTS=$(terraform output -json)
+
+          # Safely extract values using jq
+          APP_NAME=$(echo "$TF_OUTPUTS" | jq -r .function_app_name.value)
+          RG_NAME=$(echo "$TF_OUTPUTS" | jq -r .function_app_resource_group_name.value)
+          
+          echo "Extracted App Name: $APP_NAME"
+          echo "Extracted RG Name: $RG_NAME"
+
+          # Set the GitHub Actions outputs
           echo "function_app_name=$APP_NAME" >> "$GITHUB_OUTPUT"
           echo "function_app_resource_group_name=$RG_NAME" >> "$GITHUB_OUTPUT"
 
