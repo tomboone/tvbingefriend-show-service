@@ -5,7 +5,7 @@ data "http" "digicert_global_root_g2" {
 
 # Microsoft RSA Root Certificate Authority 2017 certificate (embedded PEM format)
 locals {
-  service_name: "tvbf-show-service"
+  service_name = "tvbf-show-service"
   microsoft_rsa_root_2017_pem = <<-EOT
 -----BEGIN CERTIFICATE-----
 MIIFqDCCA5CgAwIBAgIQHtOXCX95q3YKHD0uKsEafjANBgkqhkiG9w0BAQwFADBl
