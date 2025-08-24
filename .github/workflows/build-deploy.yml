@@ -129,6 +129,7 @@ jobs:
   deploy-stage:
     name: Deploy to Stage
     runs-on: ubuntu-latest
+    environment: staging
     needs: [build, terraform]
 
     steps:
