@@ -84,22 +84,33 @@ class ShowService:
         Args:
             indexmsg (func.QueueMessage): Page index message
         """
+        logging.info("=== ShowService.get_shows_index_page ENTRY ===")
+        
         # Handle message with retry logic
         def handle_index_page(message: func.QueueMessage) -> None:
             """Handle index page."""
-            msg_data = message.get_json()
-            page_number: int | None = msg_data.get("page")
-            import_id: str | None = msg_data.get("import_id")
+            logging.info("=== handle_index_page ENTRY ===")
+            try:
+                msg_data = message.get_json()
+                logging.info(f"Message data in handle_index_page: {msg_data}")
+                page_number: int | None = msg_data.get("page")
+                import_id: str | None = msg_data.get("import_id")
+                logging.info(f"Extracted page_number: {page_number}, import_id: {import_id}")
 
-            if page_number is None:
-                logging.error("Queue message is missing 'page' number.")
-                return
+                if page_number is None:
+                    logging.error("Queue message is missing 'page' number.")
+                    return
 
-            logging.info(f"ShowService.get_show_page: Getting shows from TV Maze for page_number: {page_number}")
+                logging.info(f"ShowService.get_show_page: Getting shows from TV Maze for page_number: {page_number}")
+            except Exception as e:
+                logging.error(f"Error in handle_index_page setup: {e}", exc_info=True)
+                raise
 
             try:
+                logging.info(f"Calling TVMaze API for page {page_number}...")
                 # TVMaze API now has built-in rate limiting and retry logic
                 shows: list[dict[str, Any]] | None = self.tvmaze_api.get_shows(page_number)
+                logging.info(f"TVMaze API returned {len(shows) if shows else 0} shows for page {page_number}")
 
                 if shows:
                     # Process shows with database retry logic
@@ -117,6 +128,18 @@ class ShowService:
                         
                         try:
                             upsert_with_retry()
+                            
+                            # Update ID table for show tracking
+                            show_id = show.get('id')
+                            show_updated = show.get('updated')
+                            if show_id and show_updated:
+                                @self.retry_service.with_retry('storage_write', max_attempts=3)
+                                def update_id_table_with_retry():
+                                    """Update show ID table."""
+                                    self.update_id_table(int(show_id), int(show_updated))
+                                
+                                update_id_table_with_retry()
+                            
                             success_count += 1
                         except Exception as e:
                             logging.error(f"Failed to upsert show {show.get('id', 'unknown')} after retries: {e}")
@@ -126,6 +149,19 @@ class ShowService:
                     # Update progress tracking
                     if import_id:
                         self.monitoring_service.update_import_progress(import_id, page_number)
+                    
+                    # Queue next page if we got a substantial number of shows (indicates more pages available)
+                    if len(shows) >= 200:  # TVMaze typically returns 240+ shows per page when more are available
+                        next_page = page_number + 1
+                        next_page_message = {
+                            "page": next_page,
+                            "import_id": import_id
+                        }
+                        logging.info(f"Queuing next page {next_page} for processing")
+                        self.storage_service.upload_queue_message(
+                            queue_name=INDEX_QUEUE,
+                            message=next_page_message
+                        )
                 else:
                     logging.info(f"No shows returned for page {page_number} - may have reached the end")
                     if import_id:
@@ -138,11 +174,17 @@ class ShowService:
                 raise
 
         # Process with retry logic
-        self.retry_service.handle_queue_message_with_retry(
-            message=indexmsg,
-            handler_func=handle_index_page,
-            operation_type="index_page"
-        )
+        logging.info("=== Calling retry_service.handle_queue_message_with_retry ===")
+        try:
+            self.retry_service.handle_queue_message_with_retry(
+                message=indexmsg,
+                handler_func=handle_index_page,
+                operation_type="index_page"
+            )
+            logging.info("=== retry_service.handle_queue_message_with_retry COMPLETED ===")
+        except Exception as e:
+            logging.error(f"=== ERROR in retry_service.handle_queue_message_with_retry: {e} ===", exc_info=True)
+            raise
 
     def get_show_details(self, show_id_msg: func.QueueMessage) -> None:
         """Get show details with retry logic and rate limiting.
