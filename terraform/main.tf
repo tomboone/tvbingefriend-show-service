@@ -109,12 +109,12 @@ resource "azurerm_mysql_flexible_database" "stage" {
 # Generate random passwords for database users
 resource "random_password" "prod_db_password" {
   length  = 32
-  special = true
+  special = false
 }
 
 resource "random_password" "stage_db_password" {
   length  = 32
-  special = true
+  special = false
 }
 
 # Create MySQL user for production with read access
