@@ -70,22 +70,13 @@ jobs:
         run: terraform apply -auto-approve
 
       - name: Get Terraform Outputs
-        id: get_outputs
+        id: tfoutput
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
-          # Get all outputs in JSON format to avoid parsing issues
-          TF_OUTPUTS=$(terraform output -json)
-
-          # Safely extract values using jq
-          APP_NAME=$(echo "$TF_OUTPUTS" | jq -r .function_app_name.value)
-          RG_NAME=$(echo "$TF_OUTPUTS" | jq -r .function_app_resource_group_name.value)
-          
-          echo "Extracted App Name: $APP_NAME"
-          echo "Extracted RG Name: $RG_NAME"
-
-          # Set the GitHub Actions outputs
-          echo "function_app_name=$APP_NAME" >> "$GITHUB_OUTPUT"
-          echo "function_app_resource_group_name=$RG_NAME" >> "$GITHUB_OUTPUT"
+          $APP_NAME=$(terraform output -raw function_app_name)
+          echo "function_app_name=$APP_NAME" >> $GITHUB_OUTPUT
+          $RG_NAME=$(terraform output -raw function_app_resource_group_name)
+          echo "function_app_resource_group_name=$RG_NAME" >> $GITHUB_OUTPUT
 
   build:
     name: Build Application
@@ -161,48 +152,13 @@ jobs:
       - name: Run Alembic Migrations on Stage DB
         run: |
           echo "Fetching database connection string from stage slot..."
-          FUNCTION_APP_NAME="${{ needs.terraform.outputs.function_app_name }}"
+          FUNCTION_APP_NAME="${{ steps.tfoutput.outputs.function_app_name }}"
           
           # Use the resource group name from the terraform job output
-          RG_NAME="${{ needs.terraform.outputs.function_app_resource_group_name }}"
+          RG_NAME="${{ steps.tfoutput.outputs.function_app_resource_group_name }}"
           
           echo "Using resource group: $RG_NAME"
           echo "Function app name: $FUNCTION_APP_NAME"
-          
-          # Wait a moment for app settings to propagate after Terraform deployment
-          echo "Waiting for app settings to propagate..."
-          sleep 10
-          
-          # First test: Can we get app settings from the MAIN slot?
-          echo "Testing: Getting app settings from MAIN slot..."
-          az functionapp config appsettings list \
-            --name "$FUNCTION_APP_NAME" \
-            --resource-group "$RG_NAME" \
-            --query "[].name" \
-            --output table
-          
-          # Second test: Can we list deployment slots?
-          echo "Testing: Listing deployment slots..."
-          az functionapp deployment slot list \
-            --name "$FUNCTION_APP_NAME" \
-            --resource-group "$RG_NAME" \
-            --output table
-          
-          # Third test: Try stage slot WITHOUT --slot parameter (different syntax)
-          echo "Testing: Stage slot app settings (alternative syntax)..."
-          az functionapp config appsettings list \
-            --name "$FUNCTION_APP_NAME" \
-            --slot "stage" \
-            --resource-group "$RG_NAME" \
-            --output json > settings.json
-          
-          echo "Settings file size: $(wc -c < settings.json) bytes"
-          if [[ -s settings.json ]]; then
-            echo "Found settings with alternative syntax!"
-            cat settings.json
-          else
-            echo "Alternative syntax also returned empty results"
-          fi
           
           # Try to extract the connection string
           CONNECTION_STRING=$(cat settings.json | jq -r '.[] | select(.name=="SQLALCHEMY_CONNECTION_STRING") | .value')
