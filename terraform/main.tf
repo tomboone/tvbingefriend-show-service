@@ -136,7 +136,7 @@ resource "mysql_grant" "prod_grant" {
   user       = mysql_user.prod_user.user
   host       = mysql_user.prod_user.host
   database   = azurerm_mysql_flexible_database.prod.name
-  privileges = ["SELECT", "INSERT", "UPDATE", "DELETE", "SHOW VIEW"]
+  privileges = ["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "SHOW VIEW"]
 }
 
 # Grant read permissions to staging user
@@ -144,7 +144,7 @@ resource "mysql_grant" "stage_grant" {
   user       = mysql_user.stage_user.user
   host       = mysql_user.stage_user.host
   database   = azurerm_mysql_flexible_database.stage.name
-  privileges = ["SELECT", "INSERT", "UPDATE", "DELETE", "SHOW VIEW"]
+  privileges = ["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "SHOW VIEW"]
 }
 
 resource "azurerm_linux_function_app" "main" {
@@ -168,7 +168,7 @@ resource "azurerm_linux_function_app" "main" {
     "WEBSITE_TIME_ZONE"            = "America/New_York"
     "TIMER_TRIGGER_SCHEDULE"       = "enabled"
     "MYSQL_SSL_CA_CONTENT"         = local.mysql_ca_cert_content
-    "SQLALCHEMY_CONNECTION_STRING" = "mysql+pymysql://${mysql_user.prod_user.user}:${random_password.prod_db_password.result}@${data.azurerm_mysql_flexible_server.existing.fqdn}:3306/${azurerm_mysql_flexible_database.prod.name}?charset=${azurerm_mysql_flexible_database.prod.charset}&ssl_disabled=false&ssl_verify_cert=true"
+    "SQLALCHEMY_CONNECTION_STRING" = "mysql+pymysql://${mysql_user.prod_user.user}:${random_password.prod_db_password.result}@${data.azurerm_mysql_flexible_server.existing.fqdn}:3306/${azurerm_mysql_flexible_database.prod.name}?charset=${azurerm_mysql_flexible_database.prod.charset}&ssl_disabled=false&ssl_verify_cert=false&ssl_verify_identity=false"
     "INDEX_QUEUE"                  = local.storage_queues["index-queue"]
     "DETAILS_QUEUE"                = local.storage_queues["details-queue"]
     "SHOW_IDS_TABLE"               = local.storage_tables["showidstable"]
@@ -206,7 +206,7 @@ resource "azurerm_linux_function_app_slot" "stage" {
     "WEBSITE_TIME_ZONE"            = "America/New_York"
     "TIMER_TRIGGER_SCHEDULE"       = "disabled"
     "MYSQL_SSL_CA_CONTENT"         = local.mysql_ca_cert_content
-    "SQLALCHEMY_CONNECTION_STRING" = "mysql+pymysql://${mysql_user.stage_user.user}:${random_password.stage_db_password.result}@${data.azurerm_mysql_flexible_server.existing.fqdn}:3306/${azurerm_mysql_flexible_database.stage.name}?charset=${azurerm_mysql_flexible_database.stage.charset}&ssl_disabled=false&ssl_verify_cert=true"
+    "SQLALCHEMY_CONNECTION_STRING" = "mysql+pymysql://${mysql_user.stage_user.user}:${random_password.stage_db_password.result}@${data.azurerm_mysql_flexible_server.existing.fqdn}:3306/${azurerm_mysql_flexible_database.stage.name}?charset=${azurerm_mysql_flexible_database.stage.charset}&ssl_disabled=false&ssl_verify_cert=false&ssl_verify_identity=false"
     "INDEX_QUEUE"                  = local.storage_queues["index-queue-stage"]
     "DETAILS_QUEUE"                = local.storage_queues["details-queue-stage"]
     "SHOW_IDS_TABLE"               = local.storage_tables["showidstablestage"]

@@ -13,6 +13,7 @@ override.tf.json
 backend.hcl
 *.sh
 tfplan
+mock_settings.json
 
 bin
 obj
