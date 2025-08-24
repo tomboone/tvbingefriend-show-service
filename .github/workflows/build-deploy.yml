@@ -69,15 +69,12 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform apply -auto-approve
 
-      - name: Get Function App Name from Terraform State
+      - name: Get Terraform Outputs
         id: get_outputs
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
-          state_json_raw=$(terraform show -json 2>/dev/null)
-          state_json_clean=$(echo "$state_json_raw" | perl -ne 'print if /^{/../}$/')
-          app_name=$(echo "$state_json_clean" | jq -r '.values.root_module.resources[] | select(.address=="azurerm_linux_function_app.main") | .values.name')
-          echo "function_app_name=$app_name" >> "$GITHUB_OUTPUT"
-
+          echo "function_app_name=$(terraform output -raw function_app_name)" >> "$GITHUB_OUTPUT"
+          echo "function_app_resource_group_name=$(terraform output -raw function_app_resource_group_name)" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build Application
