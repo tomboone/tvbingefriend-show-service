@@ -82,14 +82,28 @@ jobs:
         echo "Function app name: $FUNCTION_APP_NAME"
         echo "Resource group: $RG_NAME"
 
-    - name: Run production database migrations
+    - name: Swap deployment slots
+      run: |
+        echo "Swapping stage and production slots..."
+        echo "Function app: ${{ env.FUNCTION_APP_NAME }}"
+        echo "Resource group: ${{ env.RG_NAME }}"
+        
+        az functionapp deployment slot swap \
+          --name "${{ env.FUNCTION_APP_NAME }}" \
+          --resource-group "${{ env.RG_NAME }}" \
+          --slot "stage" \
+          --target-slot "production"
+        
+        echo "✅ Successfully swapped stage -> production"
+
+    - name: Run production database migrations  
       if: ${{ !inputs.skip_migrations }}
       run: |
         echo "Fetching database connection string from production slot..."
         echo "Using resource group: ${{ env.RG_NAME }}"
         echo "Function app name: ${{ env.FUNCTION_APP_NAME }}"
         
-        # Get production app settings
+        # Get production app settings (now populated after swap)
         SETTINGS=$(az functionapp config appsettings list \
           --name "${{ env.FUNCTION_APP_NAME }}" \
           --resource-group "${{ env.RG_NAME }}" \
@@ -109,25 +123,11 @@ jobs:
         fi
         
         echo "Running Alembic migrations on Production DB..."
-        export PYTHONPATH=$(pwd)/.python_packages/lib/site-packages
         export SQLALCHEMY_CONNECTION_STRING="$CONNECTION_STRING"
         export MYSQL_SSL_CA_CONTENT="$SSL_CA_CONTENT"
         
+        cd app
         python -m alembic -c alembic.ini upgrade head
-
-    - name: Swap deployment slots
-      run: |
-        echo "Swapping stage and production slots..."
-        echo "Function app: ${{ env.FUNCTION_APP_NAME }}"
-        echo "Resource group: ${{ env.RG_NAME }}"
-        
-        az functionapp deployment slot swap \
-          --name "${{ env.FUNCTION_APP_NAME }}" \
-          --resource-group "${{ env.RG_NAME }}" \
-          --slot "stage" \
-          --target-slot "production"
-        
-        echo "✅ Successfully swapped stage -> production"
 
     - name: Verify production deployment
       run: |
