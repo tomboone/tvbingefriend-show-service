@@ -170,21 +170,35 @@ jobs:
           echo "Waiting for app settings to propagate..."
           sleep 10
           
-          # First, let's see if the Azure CLI command works at all
-          echo "Testing basic Azure CLI functionality..."
+          # First test: Can we get app settings from the MAIN slot?
+          echo "Testing: Getting app settings from MAIN slot..."
           az functionapp config appsettings list \
             --name "$FUNCTION_APP_NAME" \
-            --slot stage \
+            --resource-group "$RG_NAME" \
+            --query "[].name" \
+            --output table
+          
+          # Second test: Can we list deployment slots?
+          echo "Testing: Listing deployment slots..."
+          az functionapp deployment slot list \
+            --name "$FUNCTION_APP_NAME" \
+            --resource-group "$RG_NAME" \
+            --output table
+          
+          # Third test: Try stage slot WITHOUT --slot parameter (different syntax)
+          echo "Testing: Stage slot app settings (alternative syntax)..."
+          az functionapp config appsettings list \
+            --name "$FUNCTION_APP_NAME/slots/stage" \
             --resource-group "$RG_NAME" \
             --output json > settings.json
           
-          if [[ $? -ne 0 ]]; then
-            echo "::error::Azure CLI command failed completely"
-            exit 1
+          echo "Settings file size: $(wc -c < settings.json) bytes"
+          if [[ -s settings.json ]]; then
+            echo "Found settings with alternative syntax!"
+            cat settings.json
+          else
+            echo "Alternative syntax also returned empty results"
           fi
-          
-          echo "Raw settings output:"
-          cat settings.json
           
           # Try to extract the connection string
           CONNECTION_STRING=$(cat settings.json | jq -r '.[] | select(.name=="SQLALCHEMY_CONNECTION_STRING") | .value')
