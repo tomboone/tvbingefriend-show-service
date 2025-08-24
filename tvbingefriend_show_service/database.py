@@ -1,21 +1,45 @@
 """Database connection for Azure SQL Database using Managed Identity."""
+import tempfile
 from sqlalchemy import create_engine, Engine
 from sqlalchemy.orm import sessionmaker
 
 from tvbingefriend_show_service.models.base import Base  # noqa: F401
-from tvbingefriend_show_service.config import SQLALCHEMY_CONNECTION_STRING
+from tvbingefriend_show_service.config import SQLALCHEMY_CONNECTION_STRING, MYSQL_SSL_CA_CONTENT
 
 _db_engine: Engine | None = None
 _session_maker: sessionmaker | None = None
+_cert_file_path: str | None = None  # To hold the path to our temp cert file
 
 
 def get_engine() -> Engine:
     """Get database engine, creating it if necessary"""
     global _db_engine
+    global _cert_file_path
     if _db_engine is None:
         if SQLALCHEMY_CONNECTION_STRING is None:
             raise ValueError("SQLALCHEMY_CONNECTION_STRING environment variable not set")
-        _db_engine = create_engine(SQLALCHEMY_CONNECTION_STRING, echo=True, pool_pre_ping=True)
+
+        connection_string = SQLALCHEMY_CONNECTION_STRING
+        connect_args = {}
+        ssl_ca_content = MYSQL_SSL_CA_CONTENT
+
+        if ssl_ca_content:
+            # PyMySQL needs a file path for ssl_ca.
+            # We create a temporary file to hold the certificate content.
+            with tempfile.NamedTemporaryFile(
+                mode='w', delete=False, suffix='.pem', encoding='utf-8'
+            ) as cert_file:
+                cert_file.write(ssl_ca_content)
+                _cert_file_path = cert_file.name
+                connect_args['ssl_ca'] = _cert_file_path
+
+        _db_engine = create_engine(
+            connection_string,
+            echo=True,
+            pool_pre_ping=True,
+            connect_args=connect_args
+        )
+
     return _db_engine
 
 
