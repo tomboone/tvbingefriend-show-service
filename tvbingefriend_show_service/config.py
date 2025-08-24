@@ -47,6 +47,7 @@ STORAGE_CONNECTION_SETTING_NAME: str = "AzureWebJobsStorage"
 STORAGE_CONNECTION_STRING: str | None = _get_setting(STORAGE_CONNECTION_SETTING_NAME, required=False)
 
 SQLALCHEMY_CONNECTION_STRING: str = _get_setting("SQLALCHEMY_CONNECTION_STRING")
+MYSQL_SSL_CA_CONTENT: str = _get_setting("MYSQL_SSL_CA_CONTENT", required=False)
 
 INDEX_QUEUE: str = _get_setting("INDEX_QUEUE", default="index-queue")
 DETAILS_QUEUE: str = _get_setting("DETAILS_QUEUE", default="details-queue")

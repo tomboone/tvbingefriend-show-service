@@ -4,7 +4,7 @@ from sqlalchemy import create_engine, Engine
 from sqlalchemy.orm import sessionmaker
 
 from tvbingefriend_show_service.models.base import Base  # noqa: F401
-from tvbingefriend_show_service.config import SQLALCHEMY_CONNECTION_STRING, _get_setting
+from tvbingefriend_show_service.config import SQLALCHEMY_CONNECTION_STRING, MYSQL_SSL_CA_CONTENT
 
 _db_engine: Engine | None = None
 _session_maker: sessionmaker | None = None
@@ -21,7 +21,7 @@ def get_engine() -> Engine:
 
         connection_string = SQLALCHEMY_CONNECTION_STRING
         connect_args = {}
-        ssl_ca_content = _get_setting("MYSQL_SSL_CA_CONTENT", required=False)
+        ssl_ca_content = MYSQL_SSL_CA_CONTENT
 
         if ssl_ca_content:
             # PyMySQL needs a file path for ssl_ca.
