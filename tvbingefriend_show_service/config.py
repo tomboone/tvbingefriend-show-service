@@ -46,14 +46,11 @@ def _get_setting(var_name: str, required: bool = True, default: Any = None) -> A
 STORAGE_CONNECTION_SETTING_NAME: str = "AzureWebJobsStorage"
 STORAGE_CONNECTION_STRING: str | None = _get_setting(STORAGE_CONNECTION_SETTING_NAME, required=False)
 
-DB_HOST: str = _get_setting("DB_HOST")
-DB_NAME: str = _get_setting("DB_NAME")
-DB_USER: str = _get_setting("DB_USER")
-DB_PASSWORD: str | None = _get_setting("DB_PASSWORD", required=False)
+SQLALCHEMY_CONNECTION_STRING: str = _get_setting("SQLALCHEMY_CONNECTION_STRING")
 
 INDEX_QUEUE: str = _get_setting("INDEX_QUEUE", default="index-queue")
 DETAILS_QUEUE: str = _get_setting("DETAILS_QUEUE", default="details-queue")
 
-SHOW_IDS_TABLE: str = _get_setting("SHOW_IDS_TABLE", default="show-ids-table")
+SHOW_IDS_TABLE: str = _get_setting("SHOW_IDS_TABLE", default="showidstable")
 
 UPDATES_NCRON: str = _get_setting("UPDATES_NCRON", default="0 0 2 * * *")

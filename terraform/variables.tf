@@ -1,20 +1,30 @@
-variable "resource_group_name" {
-  type        = string
-  description = "The name of the existing resource group."
+variable "service_name" {
+  type = string
 }
 
-variable "app_service_plan_name" {
-  type        = string
-  description = "The name of the existing App Service Plan."
+variable "tf_shared_resource_group_name" {
+  type = string
 }
 
-variable "mysql_server_name" {
-  type        = string
-  description = "The name of the existing MySQL Flexible Server."
+variable "tf_shared_storage_account_name" {
+  type = string
 }
 
-variable "project_name" {
+variable "tf_shared_container_name" {
+  type = string
+}
+
+variable "tf_shared_key" {
+  type = string
+}
+
+variable "mysql_admin_username" {
   type        = string
-  description = "The name of the project."
-  default     = "tvbf-show-service"
+  description = "MySQL flexible server admin username"
+}
+
+variable "mysql_admin_password" {
+  type        = string
+  description = "MySQL flexible server admin password"
+  sensitive   = true
 }

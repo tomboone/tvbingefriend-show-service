@@ -1766,14 +1766,14 @@ reference = "TBC_Feed"
 
 [[package]]
 name = "tvbingefriend-azure-storage-service"
-version = "0.1.1"
+version = "0.1.2"
 description = ""
 optional = false
 python-versions = ">=3.11"
 groups = ["main"]
 files = [
-    {file = "tvbingefriend_azure_storage_service-0.1.1-py3-none-any.whl", hash = "sha256:28c2f0dc606435ab62a9641e7be2f7346865820017c6a064d8df7b71c52d6c38"},
-    {file = "tvbingefriend_azure_storage_service-0.1.1.tar.gz", hash = "sha256:60e213ed9f470345d20b52f11b0cfff760d4ccc0ddb43900a107402c9c6e563e"},
+    {file = "tvbingefriend_azure_storage_service-0.1.2-py3-none-any.whl", hash = "sha256:60234b1aed96d05d7c643880d8a60a66207a492fdf3e75d953c141d008933af5"},
+    {file = "tvbingefriend_azure_storage_service-0.1.2.tar.gz", hash = "sha256:8894de34abdf7475618f651754508e9d41d9999d8e820d827ba29c06b189e353"},
 ]
 
 [package.dependencies]
@@ -1789,14 +1789,14 @@ reference = "TBC_Feed"
 
 [[package]]
 name = "tvbingefriend-tvmaze-client"
-version = "0.1.4"
+version = "0.1.6"
 description = "A Python client for the TV Maze API"
 optional = false
 python-versions = ">=3.12"
 groups = ["main"]
 files = [
-    {file = "tvbingefriend_tvmaze_client-0.1.4-py3-none-any.whl", hash = "sha256:9895ba6eca7fe8b38d8ee5eed165ca11efa0780feaba5ef15f74b62f98bf0265"},
-    {file = "tvbingefriend_tvmaze_client-0.1.4.tar.gz", hash = "sha256:e73cc6fcbdc55ae17ec736e11561552e4596d08a45e12c47cf15c395d168ddee"},
+    {file = "tvbingefriend_tvmaze_client-0.1.6-py3-none-any.whl", hash = "sha256:c61a976d22ec2465309305cade070569cccab8ed609b403b52f5842d9fc03efe"},
+    {file = "tvbingefriend_tvmaze_client-0.1.6.tar.gz", hash = "sha256:767976b4c68be36a4e81a43aa6f1782517bdc9cb35e34e981fd95faf96b1d9e5"},
 ]
 
 [package.dependencies]

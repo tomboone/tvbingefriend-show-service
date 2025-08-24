@@ -22,12 +22,15 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  TF_VAR_resource_group_name: ${{ secrets.AZURE_RESOURCE_GROUP }}
-  TF_VAR_app_service_plan_name: ${{ secrets.AZURE_APP_SERVICE_PLAN }}
-  TF_VAR_mysql_server_name: ${{ secrets.AZURE_MYSQL_SERVER }}
+  TF_VAR_tf_shared_resource_group_name: ${{ secrets.TF_SHARED_RESOURCE_GROUP_NAME }}
+  TF_VAR_tf_shared_storage_account_name: ${{ secrets.TF_SHARED_STORAGE_ACCOUNT_NAME }}
+  TF_VAR_tf_shared_container_name: ${{ secrets.TF_SHARED_CONTAINER_NAME }}
+  TF_VAR_tf_shared_key: ${{ secrets.TF_SHARED_KEY }}
+  TF_VAR_service_name: ${{ secrets.SERVICE_NAME }}
+  TF_VAR_mysql_admin_username: ${{ secrets.MYSQL_ADMIN_USERNAME }}
+  TF_VAR_mysql_admin_password: ${{ secrets.MYSQL_ADMIN_PASSWORD }}
   TF_WORKING_DIR: ./terraform
-  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-  PYTHON_VERSION: '3.12' # Define Python version once
+  PYTHON_VERSION: '3.12'
 
 jobs:
   terraform:
@@ -43,9 +46,9 @@ jobs:
       - name: Log in to Azure
         uses: azure/login@v1
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
@@ -56,8 +59,8 @@ jobs:
           terraform init \
             -backend-config="resource_group_name=${{ secrets.TF_STATE_RG }}" \
             -backend-config="storage_account_name=${{ secrets.TF_STATE_SA }}" \
-            -backend-config="container_name=tfstate" \
-            -backend-config="key=tvbingefriend-show-service.terraform.tfstate"
+            -backend-config="container_name=${{ secrets.TF_STATE_CONTAINER }}" \
+            -backend-config="key=${{ secrets.TF_STATE_KEY }}"
 
       - name: Terraform Apply
         working-directory: ${{ env.TF_WORKING_DIR }}
@@ -72,38 +75,6 @@ jobs:
           app_name=$(echo "$state_json_clean" | jq -r '.values.root_module.resources[] | select(.address=="azurerm_linux_function_app.main") | .values.name')
           echo "function_app_name=$app_name" >> "$GITHUB_OUTPUT"
 
-      - name: Install Azure CLI RDBMS-Connect Extension
-        run: az extension add --name rdbms-connect
-
-      - name: Grant Database Access
-        id: grant_db_access
-        run: |
-          echo "Granting database access for ${{ steps.get_outputs.outputs.function_app_name }}..."
-          RG_NAME="${{ secrets.AZURE_RESOURCE_GROUP }}"
-          MYSQL_SERVER_NAME="${{ secrets.AZURE_MYSQL_SERVER }}"
-          FUNCTION_APP_NAME="${{ steps.get_outputs.outputs.function_app_name }}"
-
-          # Get Managed Identity IDs
-          PROD_MI_ID=$(az functionapp identity show --name $FUNCTION_APP_NAME --resource-group $RG_NAME --query principalId -o tsv)
-          STAGE_MI_ID=$(az functionapp identity show --name $FUNCTION_APP_NAME --slot stage --resource-group $RG_NAME --query principalId -o tsv)
-          
-          # Get DB Info from App Settings
-          PROD_DB_NAME=$(az functionapp config appsettings list --name $FUNCTION_APP_NAME --resource-group $RG_NAME --query "[?name=='DB_NAME'].value" -o tsv)
-          STAGE_DB_NAME=$(az functionapp config appsettings list --name $FUNCTION_APP_NAME --slot stage --resource-group $RG_NAME --query "[?name=='DB_NAME'].value" -o tsv)
-          PROD_DB_USER=$(az functionapp config appsettings list --name $FUNCTION_APP_NAME --resource-group $RG_NAME --query "[?name=='DB_USER'].value" -o tsv)
-          STAGE_DB_USER=$(az functionapp config appsettings list --name $FUNCTION_APP_NAME --slot stage --resource-group $RG_NAME --query "[?name=='DB_USER'].value" -o tsv)
-
-          # --- Grant DB Access for Production ---
-          echo "Granting access to Production DB: $PROD_DB_NAME"
-          az mysql flexible-server execute --name "$MYSQL_SERVER_NAME" --database-name "$PROD_DB_NAME" --querytext "DROP USER IF EXISTS '$PROD_DB_USER'"
-          az mysql flexible-server execute --name "$MYSQL_SERVER_NAME" --database-name "$PROD_DB_NAME" --querytext "CREATE AADUSER '$PROD_DB_USER' IDENTIFIED BY '$PROD_MI_ID'"
-          az mysql flexible-server execute --name "$MYSQL_SERVER_NAME" --database-name "$PROD_DB_NAME" --querytext "GRANT ALL PRIVILEGES ON $PROD_DB_NAME.* TO '$PROD_DB_USER'@'%'"
-
-          # --- Grant DB Access for Stage ---
-          echo "Granting access to Stage DB: $STAGE_DB_NAME"
-          az mysql flexible-server execute --name "$MYSQL_SERVER_NAME" --database-name "$STAGE_DB_NAME" --querytext "DROP USER IF EXISTS '$STAGE_DB_USER'"
-          az mysql flexible-server execute --name "$MYSQL_SERVER_NAME" --database-name "$STAGE_DB_NAME" --querytext "CREATE AADUSER '$STAGE_DB_USER' IDENTIFIED BY '$STAGE_MI_ID'"
-          az mysql flexible-server execute --name "$MYSQL_SERVER_NAME" --database-name "$STAGE_DB_NAME" --querytext "GRANT ALL PRIVILEGES ON $STAGE_DB_NAME.* TO '$STAGE_DB_USER'@'%'"
 
   build:
     name: Build Application
@@ -162,9 +133,9 @@ jobs:
       - name: Log in to Azure
         uses: azure/login@v1
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
 
       - name: Unzip deployment artifact
         run: unzip python-app.zip -d app
@@ -178,17 +149,25 @@ jobs:
 
       - name: Run Alembic Migrations on Stage DB
         run: |
-          echo "Fetching database connection details from stage slot..."
-          RG_NAME="${{ env.TF_VAR_resource_group_name }}"
+          echo "Fetching database connection string from stage slot..."
           FUNCTION_APP_NAME="${{ needs.terraform.outputs.function_app_name }}"
+          # Get resource group name from shared state
+          RG_NAME=$(az functionapp show --name $FUNCTION_APP_NAME --query "resourceGroup" -o tsv)
           
-          APP_SETTINGS=$(az functionapp config appsettings list --name $FUNCTION_APP_NAME --slot stage --resource-group $RG_NAME)
+          # Get the complete connection string from the deployed Function App
+          CONNECTION_STRING=$(az functionapp config appsettings list \
+            --name $FUNCTION_APP_NAME \
+            --slot stage \
+            --resource-group $RG_NAME \
+            --query "[?name=='SQLALCHEMY_CONNECTION_STRING'].value" \
+            --output tsv)
           
-          export DB_HOST=$(echo $APP_SETTINGS | jq -r '.[] | select(.name=="DB_HOST").value')
-          export DB_NAME=$(echo $APP_SETTINGS | jq -r '.[] | select(.name=="DB_NAME").value')
-          export DB_USER=$(echo $APP_SETTINGS | jq -r '.[] | select(.name=="DB_USER").value')
-          export MYSQL_SSL_CA_CONTENT=$(echo $APP_SETTINGS | jq -r '.[] | select(.name=="MYSQL_SSL_CA_CONTENT").value')
-
-          echo "Running Alembic migrations on Stage DB: $DB_NAME"
+          if [[ -z "$CONNECTION_STRING" ]]; then
+            echo "::error::Failed to retrieve SQLALCHEMY_CONNECTION_STRING from stage slot"
+            exit 1
+          fi
+          
+          echo "Running Alembic migrations on Stage DB..."
           export PYTHONPATH=$(pwd)/app/.python_packages/lib/site-packages
+          export SQLALCHEMY_CONNECTION_STRING="$CONNECTION_STRING"
           python -m alembic -c app/alembic.ini upgrade head

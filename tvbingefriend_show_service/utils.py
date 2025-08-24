@@ -5,7 +5,7 @@ from typing import Generator
 
 from sqlalchemy.orm import Session
 
-from tvbingefriend_show_service.database import SessionLocal
+from tvbingefriend_show_service.database import get_session_maker
 
 
 @contextmanager
@@ -14,7 +14,8 @@ def db_session_manager() -> Generator[Session, None, None]:
     Provide a transactional scope around a series of operations.
     Handles session creation, commit, rollback, and closing.
     """
-    db = SessionLocal()
+    session_maker = get_session_maker()
+    db = session_maker()
     try:
         yield db
         db.commit()
