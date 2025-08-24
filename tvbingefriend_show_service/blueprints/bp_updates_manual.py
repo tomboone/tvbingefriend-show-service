@@ -1,3 +1,4 @@
+"""Update shows manaully"""
 import logging
 
 import azure.functions as func

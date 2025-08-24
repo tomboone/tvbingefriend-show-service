@@ -3,7 +3,7 @@ import logging
 
 import azure.functions as func
 
-from tvbingefriend_show_service.config import SHOWS_INDEX_QUEUE, STORAGE_CONNECTION_SETTING_NAME
+from tvbingefriend_show_service.config import INDEX_QUEUE, STORAGE_CONNECTION_SETTING_NAME
 from tvbingefriend_show_service.services.show_service import ShowService
 
 bp: func.Blueprint = func.Blueprint()
@@ -12,7 +12,7 @@ bp: func.Blueprint = func.Blueprint()
 @bp.function_name(name="get_index_page")
 @bp.queue_trigger(
     arg_name="indexpagemsg",
-    queue_name=SHOWS_INDEX_QUEUE,
+    queue_name=INDEX_QUEUE,
     connection=STORAGE_CONNECTION_SETTING_NAME
 )
 def get_index_page(indexpagemsg: func.QueueMessage) -> None:

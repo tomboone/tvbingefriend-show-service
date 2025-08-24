@@ -8,16 +8,33 @@ os.environ['SQLALCHEMY_CONNECTION_STRING'] = 'sqlite:///:memory:'
 
 class TestDatabase(unittest.TestCase):
 
-    # Patch the functions at their source, so that when the database module
-    # is reloaded, it uses our mocks.
-    @patch('sqlalchemy.create_engine')
-    @patch('sqlalchemy.orm.sessionmaker')
-    def test_engine_and_session_creation(self, mock_sessionmaker, mock_create_engine):
-        """Test that the database engine and sessionmaker are created on module load."""
-        from tvbingefriend_show_service import database
-        importlib.reload(database)
-
+    @patch('tvbingefriend_show_service.database.create_engine')
+    @patch('tvbingefriend_show_service.database.sessionmaker')
+    def test_engine_creation(self, mock_sessionmaker, mock_create_engine):
+        """Test that the database engine is created when get_engine is called."""
+        from tvbingefriend_show_service.database import get_engine
+        
+        # Reset global variables
+        import tvbingefriend_show_service.database as db_module
+        db_module._db_engine = None
+        
+        get_engine()
+        
         mock_create_engine.assert_called_once()
+
+    @patch('tvbingefriend_show_service.database.get_engine')
+    @patch('tvbingefriend_show_service.database.sessionmaker')
+    def test_session_maker_creation(self, mock_sessionmaker, mock_get_engine):
+        """Test that sessionmaker is created when get_session_maker is called."""
+        from tvbingefriend_show_service.database import get_session_maker
+        
+        # Reset global variables
+        import tvbingefriend_show_service.database as db_module
+        db_module._session_maker = None
+        
+        get_session_maker()
+        
+        mock_get_engine.assert_called_once()
         mock_sessionmaker.assert_called_once()
 
 

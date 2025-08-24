@@ -19,7 +19,9 @@ if config.config_file_name is not None:
 # add your model's MetaData object here
 # for 'autogenerate' support
 from tvbingefriend_show_service.models.base import Base
-from tvbingefriend_show_service.database import engine
+from tvbingefriend_show_service.database import get_engine
+# Import all models so they register with Base.metadata
+from tvbingefriend_show_service.models.show import Show
 target_metadata = Base.metadata
 
 
@@ -35,6 +37,7 @@ def run_migrations_offline() -> None:
     script output.
 
     """
+    engine = get_engine()
     context.configure(
         url=str(engine.url),
         target_metadata=target_metadata,
@@ -53,6 +56,7 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    engine = get_engine()
     with engine.connect() as connection:
         context.configure(
             connection=connection, target_metadata=target_metadata
