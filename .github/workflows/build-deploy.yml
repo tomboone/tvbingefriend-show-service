@@ -151,17 +151,12 @@ jobs:
           package: 'app'
 
       - name: Run Alembic Migrations on Stage DB
-        env:
-          TF_VAR_tf_shared_resource_group_name: ${{ secrets.TF_SHARED_RESOURCE_GROUP_NAME }}
-          TF_VAR_tf_shared_storage_account_name: ${{ secrets.TF_SHARED_STORAGE_ACCOUNT_NAME }}
-          TF_VAR_tf_shared_container_name: ${{ secrets.TF_SHARED_CONTAINER_NAME }}
-          TF_VAR_tf_shared_key: ${{ secrets.TF_SHARED_KEY }}
         run: |
           echo "Fetching database connection string from stage slot..."
           FUNCTION_APP_NAME="${{ needs.terraform.outputs.function_app_name }}"
           
-          # Use the resource group name from shared Terraform state
-          RG_NAME="${{ secrets.TF_SHARED_RESOURCE_GROUP_NAME }}"
+          # Use the resource group name from the terraform job output
+          RG_NAME="${{ needs.terraform.outputs.function_app_resource_group_name }}"
           
           echo "Using resource group: $RG_NAME"
           echo "Function app name: $FUNCTION_APP_NAME"
@@ -188,7 +183,8 @@ jobs:
           # Third test: Try stage slot WITHOUT --slot parameter (different syntax)
           echo "Testing: Stage slot app settings (alternative syntax)..."
           az functionapp config appsettings list \
-            --name "$FUNCTION_APP_NAME/slots/stage" \
+            --name "$FUNCTION_APP_NAME" \
+            --slot "stage" \
             --resource-group "$RG_NAME" \
             --output json > settings.json
           
