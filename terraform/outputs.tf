@@ -3,6 +3,11 @@ output "function_app_name" {
   value       = azurerm_linux_function_app.main.name
 }
 
+output "function_app_resource_group_name" {
+  description = "The resource group of the function app."
+  value       = azurerm_linux_function_app.main.resource_group_name
+}
+
 output "prod_db_name" {
   description = "The name of the production database."
   value       = azurerm_mysql_flexible_database.prod.name
