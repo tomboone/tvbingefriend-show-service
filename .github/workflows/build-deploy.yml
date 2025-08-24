@@ -179,4 +179,6 @@ jobs:
           export PYTHONPATH=$(pwd)/app/.python_packages/lib/site-packages
           export SQLALCHEMY_CONNECTION_STRING="$CONNECTION_STRING"
           
+          cd app
+
           python -m alembic -c alembic.ini upgrade head
