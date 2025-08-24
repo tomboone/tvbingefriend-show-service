@@ -1,0 +1,158 @@
+#file: noinspection UndefinedAction,UndefinedParamsPresent
+name: Promote Stage to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_promotion:
+        description: 'Type "PROMOTE" to confirm you want to swap slots and run production migrations'
+        required: true
+        type: string
+      skip_migrations:
+        description: 'Skip database migrations (use only if no schema changes)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+  ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+  ARM_USE_OIDC: true
+  TF_VAR_tf_shared_resource_group_name: ${{ secrets.TF_SHARED_RESOURCE_GROUP_NAME }}
+  TF_VAR_tf_shared_state_storage_account_name: ${{ secrets.TF_SHARED_STATE_STORAGE_ACCOUNT_NAME }}
+  TF_VAR_mysql_admin_username: ${{ secrets.MYSQL_ADMIN_USERNAME }}
+  TF_VAR_mysql_admin_password: ${{ secrets.MYSQL_ADMIN_PASSWORD }}
+
+jobs:
+  promote-to-production:
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - name: Validate confirmation input
+      run: |
+        if [[ "${{ github.event.inputs.confirm_promotion }}" != "PROMOTE" ]]; then
+          echo "::error::You must type 'PROMOTE' to confirm the promotion"
+          exit 1
+        fi
+        echo "✅ Promotion confirmed"
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Azure Login
+      uses: azure/login@v2
+      with:
+        client-id: ${{ secrets.ARM_CLIENT_ID }}
+        tenant-id: ${{ secrets.ARM_TENANT_ID }}
+        subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+
+    - name: Get Terraform outputs
+      working-directory: terraform
+      run: |
+        terraform init \
+          -backend-config="resource_group_name=${{ env.TF_VAR_tf_shared_resource_group_name }}" \
+          -backend-config="storage_account_name=${{ env.TF_VAR_tf_shared_state_storage_account_name }}" \
+          -backend-config="container_name=terraform-state" \
+          -backend-config="key=tvbingefriend-show-service.tfstate"
+        
+        FUNCTION_APP_NAME=$(terraform output -raw function_app_name)
+        RG_NAME=$(terraform output -raw function_app_resource_group_name)
+        
+        echo "FUNCTION_APP_NAME=$FUNCTION_APP_NAME" >> $GITHUB_ENV
+        echo "RG_NAME=$RG_NAME" >> $GITHUB_ENV
+        echo "Function app name: $FUNCTION_APP_NAME"
+        echo "Resource group: $RG_NAME"
+
+    - name: Run production database migrations
+      if: ${{ !inputs.skip_migrations }}
+      run: |
+        echo "Fetching database connection string from production slot..."
+        echo "Using resource group: ${{ env.RG_NAME }}"
+        echo "Function app name: ${{ env.FUNCTION_APP_NAME }}"
+        
+        # Get production app settings
+        SETTINGS=$(az functionapp config appsettings list \
+          --name "${{ env.FUNCTION_APP_NAME }}" \
+          --resource-group "${{ env.RG_NAME }}" \
+          --output json)
+        
+        CONNECTION_STRING=$(echo "$SETTINGS" | jq -r '.[] | select(.name=="SQLALCHEMY_CONNECTION_STRING") | .value')
+        SSL_CA_CONTENT=$(echo "$SETTINGS" | jq -r '.[] | select(.name=="MYSQL_SSL_CA_CONTENT") | .value')
+        
+        if [[ -z "$CONNECTION_STRING" || "$CONNECTION_STRING" == "null" ]]; then
+          echo "::error::SQLALCHEMY_CONNECTION_STRING not found in production app settings"
+          exit 1
+        fi
+        
+        if [[ -z "$SSL_CA_CONTENT" || "$SSL_CA_CONTENT" == "null" ]]; then
+          echo "::error::MYSQL_SSL_CA_CONTENT not found in production app settings"
+          exit 1
+        fi
+        
+        echo "Running Alembic migrations on Production DB..."
+        export PYTHONPATH=$(pwd)/app/.python_packages/lib/site-packages
+        export SQLALCHEMY_CONNECTION_STRING="$CONNECTION_STRING"
+        export MYSQL_SSL_CA_CONTENT="$SSL_CA_CONTENT"
+        
+        cd app
+        python -m alembic -c alembic.ini upgrade head
+
+    - name: Swap deployment slots
+      run: |
+        echo "Swapping stage and production slots..."
+        echo "Function app: ${{ env.FUNCTION_APP_NAME }}"
+        echo "Resource group: ${{ env.RG_NAME }}"
+        
+        az functionapp deployment slot swap \
+          --name "${{ env.FUNCTION_APP_NAME }}" \
+          --resource-group "${{ env.RG_NAME }}" \
+          --slot "stage" \
+          --target-slot "production"
+        
+        echo "✅ Successfully swapped stage -> production"
+
+    - name: Verify production deployment
+      run: |
+        echo "Waiting 30 seconds for deployment to stabilize..."
+        sleep 30
+        
+        # Get production function app URL
+        FUNCTION_URL=$(az functionapp show \
+          --name "${{ env.FUNCTION_APP_NAME }}" \
+          --resource-group "${{ env.RG_NAME }}" \
+          --query "defaultHostName" \
+          --output tsv)
+        
+        echo "Production URL: https://$FUNCTION_URL"
+        echo "Deployment completed successfully!"
+        
+        # Optional: Add health check if you have a health endpoint
+        # curl -f "https://$FUNCTION_URL/api/health" || echo "::warning::Health check failed"
+
+    - name: Post-deployment summary
+      if: always()
+      run: |
+        echo "## 🚀 Production Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Function App**: ${{ env.FUNCTION_APP_NAME }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Resource Group**: ${{ env.RG_NAME }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Migrations**: ${{ inputs.skip_migrations && 'Skipped' || 'Executed' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Status**: ${{ job.status == 'success' && '✅ Success' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [[ "${{ job.status }}" == "success" ]]; then
+          echo "Stage environment has been successfully promoted to production!" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Deployment failed. Production environment unchanged." >> $GITHUB_STEP_SUMMARY
+        fi
