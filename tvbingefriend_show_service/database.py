@@ -26,10 +26,15 @@ def get_engine() -> Engine:
         if ssl_ca_content:
             # PyMySQL needs a file path for ssl_ca.
             # We create a temporary file to hold the certificate content.
+            # Format the certificate content to ensure proper PEM format
+            formatted_cert = ssl_ca_content.replace('\\n', '\n')
+            if not formatted_cert.endswith('\n'):
+                formatted_cert += '\n'
+            
             with tempfile.NamedTemporaryFile(
                 mode='w', delete=False, suffix='.pem', encoding='utf-8'
             ) as cert_file:
-                cert_file.write(ssl_ca_content)
+                cert_file.write(formatted_cert)
                 _cert_file_path = cert_file.name
                 connect_args['ssl_ca'] = _cert_file_path
                 connect_args['ssl_disabled'] = False  # type: ignore
