@@ -170,36 +170,31 @@ jobs:
           echo "Waiting for app settings to propagate..."
           sleep 10
           
-          # Retry mechanism for getting connection string
-          for i in {1..3}; do
-            echo "Attempt $i: Getting connection string from stage slot..."
-            CONNECTION_STRING=$(az functionapp config appsettings list \
-              --name "$FUNCTION_APP_NAME" \
-              --slot stage \
-              --resource-group "$RG_NAME" \
-              --query "[?name=='SQLALCHEMY_CONNECTION_STRING'].value" \
-              --output tsv)
-            
-            if [[ -n "$CONNECTION_STRING" ]]; then
-              echo "Successfully retrieved connection string on attempt $i"
-              break
-            fi
-            
-            if [[ $i -eq 3 ]]; then
-              echo "::error::Failed to retrieve SQLALCHEMY_CONNECTION_STRING after 3 attempts"
-              echo "Debug: Listing all app settings for stage slot:"
-              az functionapp config appsettings list \
-                --name "$FUNCTION_APP_NAME" \
-                --slot stage \
-                --resource-group "$RG_NAME" \
-                --query "[].{Name:name}" \
-                --output table
-              exit 1
-            fi
-            
-            echo "Attempt $i failed, waiting 5 seconds before retry..."
-            sleep 5
-          done
+          # First, let's see if the Azure CLI command works at all
+          echo "Testing basic Azure CLI functionality..."
+          az functionapp config appsettings list \
+            --name "$FUNCTION_APP_NAME" \
+            --slot stage \
+            --resource-group "$RG_NAME" \
+            --output json > settings.json
+          
+          if [[ $? -ne 0 ]]; then
+            echo "::error::Azure CLI command failed completely"
+            exit 1
+          fi
+          
+          echo "Raw settings output:"
+          cat settings.json
+          
+          # Try to extract the connection string
+          CONNECTION_STRING=$(cat settings.json | jq -r '.[] | select(.name=="SQLALCHEMY_CONNECTION_STRING") | .value')
+          
+          if [[ -z "$CONNECTION_STRING" || "$CONNECTION_STRING" == "null" ]]; then
+            echo "::error::SQLALCHEMY_CONNECTION_STRING not found in app settings"
+            echo "Available settings:"
+            cat settings.json | jq -r '.[] | .name'
+            exit 1
+          fi
           
           echo "Running Alembic migrations on Stage DB..."
           export PYTHONPATH=$(pwd)/app/.python_packages/lib/site-packages
