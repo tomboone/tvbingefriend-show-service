@@ -73,8 +73,10 @@ jobs:
         id: get_outputs
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
-          echo "function_app_name=$(terraform output -raw function_app_name)" >> "$GITHUB_OUTPUT"
-          echo "function_app_resource_group_name=$(terraform output -raw function_app_resource_group_name)" >> "$GITHUB_OUTPUT"
+          APP_NAME=$(terraform output -raw function_app_name | tail -n 1)
+          RG_NAME=$(terraform output -raw function_app_resource_group_name | tail -n 1)
+          echo "function_app_name=$APP_NAME" >> "$GITHUB_OUTPUT"
+          echo "function_app_resource_group_name=$RG_NAME" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build Application
