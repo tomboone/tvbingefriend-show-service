@@ -1,9 +1,6 @@
 import unittest
 from unittest.mock import MagicMock, patch
-from datetime import datetime, UTC
-import time
 
-import azure.functions as func
 
 from tvbingefriend_show_service.services.retry_service import RetryService
 

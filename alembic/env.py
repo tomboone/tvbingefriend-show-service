@@ -21,7 +21,6 @@ if config.config_file_name is not None:
 from tvbingefriend_show_service.models.base import Base
 from tvbingefriend_show_service.database import get_engine
 # Import all models so they register with Base.metadata
-from tvbingefriend_show_service.models.show import Show
 target_metadata = Base.metadata
 
 

@@ -1,8 +1,7 @@
-import json
 import os
 import sys
 import unittest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 from types import ModuleType
 
 import azure.functions as func
@@ -219,10 +218,6 @@ class TestShowService(unittest.TestCase):
         self.service.get_shows_index_page(mock_index_msg)
         
         # Check that next page was queued
-        expected_calls = [
-            call(queue_name=INDEX_QUEUE, message={"page": 1, "import_id": "test_import"}),
-            call(queue_name=INDEX_QUEUE, message={"page": 2, "import_id": "test_import"})
-        ]
         # Should have 2 calls - one for initial message and one for next page
         self.assertEqual(self.service.storage_service.upload_queue_message.call_count, 1)
         # The second call should be for page 2

@@ -24,7 +24,7 @@ def get_index_page(indexpagemsg: func.QueueMessage) -> None:
     try:
         logging.info("=== PROCESSING INDEX PAGE MESSAGE ===")
         logging.info(f"Message ID: {indexpagemsg.id}")
-        logging.info(f"Message content: {indexpagemsg.get_body()}")
+        logging.info(f"Message content: {indexpagemsg.get_body().decode('utf-8')}")
         logging.info(f"Dequeue count: {indexpagemsg.dequeue_count}")
         logging.info(f"Pop receipt: {indexpagemsg.pop_receipt}")
         
