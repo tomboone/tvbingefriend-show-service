@@ -102,8 +102,8 @@ class ShowService:
                     return
 
                 logging.info(f"ShowService.get_show_page: Getting shows from TV Maze for page_number: {page_number}")
-            except Exception as e:
-                logging.error(f"Error in handle_index_page setup: {e}", exc_info=True)
+            except Exception as err:
+                logging.error(f"Error in handle_index_page setup: {err}", exc_info=True)
                 raise
 
             try:
@@ -141,8 +141,8 @@ class ShowService:
                                 update_id_table_with_retry()
                             
                             success_count += 1
-                        except Exception as e:
-                            logging.error(f"Failed to upsert show {show.get('id', 'unknown')} after retries: {e}")
+                        except Exception as err:
+                            logging.error(f"Failed to upsert show {show.get('id', 'unknown')} after retries: {err}")
 
                     logging.info(f"Successfully processed {success_count}/{len(shows)} shows from page {page_number}")
                     
@@ -167,8 +167,8 @@ class ShowService:
                     if import_id:
                         self.monitoring_service.complete_bulk_import(import_id, ImportStatus.COMPLETED)
 
-            except Exception as e:
-                logging.error(f"Failed to get shows for page {page_number}: {e}")
+            except Exception as err:
+                logging.error(f"Failed to get shows for page {page_number}: {err}")
                 if import_id:
                     self.monitoring_service.update_import_progress(import_id, page_number, success=False)
                 raise
