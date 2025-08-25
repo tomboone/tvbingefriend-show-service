@@ -6,7 +6,7 @@ from unittest.mock import patch
 os.environ['SQLALCHEMY_CONNECTION_STRING'] = 'mysql://test_user:test_pass@test_host:3306/test_db'
 
 # This needs to be imported after the environment is patched
-from tvbingefriend_show_service.config import _get_setting, SQLALCHEMY_CONNECTION_STRING
+from tvbingefriend_show_service.config import _get_setting
 
 
 class TestConfig(unittest.TestCase):

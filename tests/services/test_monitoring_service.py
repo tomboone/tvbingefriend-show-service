@@ -1,7 +1,5 @@
 import unittest
 from unittest.mock import MagicMock, patch
-from datetime import datetime, UTC
-from typing import Any
 
 from tvbingefriend_show_service.services.monitoring_service import MonitoringService, ImportStatus
 
