@@ -55,10 +55,15 @@ data "terraform_remote_state" "shared" {
     key: var.tf_shared_key
   }
 }
+
+data "azurerm_service_plan" "existing" {
+  name = data.terraform_remote_state.shared.outputs.app_service_plan_name
+  resource_group_name = data.terraform_remote_state.shared.outputs.app_service_plan_resource_group
+}
+
 data "azurerm_resource_group" "existing" {
   name = data.terraform_remote_state.shared.outputs.resource_group_name
 }
-
 
 data "azurerm_storage_account" "existing" {
   name                     = data.terraform_remote_state.shared.outputs.storage_account_name
@@ -84,8 +89,8 @@ data "azurerm_log_analytics_workspace" "existing" {
 
 resource "azurerm_application_insights" "main" {
   name                = local.service_name
-  resource_group_name = data.azurerm_log_analytics_workspace.existing.resource_group_name
-  location            = data.terraform_remote_state.shared.outputs.location
+  resource_group_name = data.azurerm_resource_group.existing.name
+  location            = data.azurerm_resource_group.existing.location
   workspace_id        = data.azurerm_log_analytics_workspace.existing.id
   application_type    = "web"
 }
@@ -150,8 +155,8 @@ resource "mysql_grant" "stage_grant" {
 resource "azurerm_linux_function_app" "main" {
   name                       = local.service_name
   resource_group_name        = data.azurerm_resource_group.existing.name
-  location                   = data.terraform_remote_state.shared.outputs.location
-  service_plan_id            = data.terraform_remote_state.shared.outputs.app_service_plan_id
+  location                   = data.azurerm_resource_group.existing.location
+  service_plan_id            = data.azurerm_service_plan.existing.id
   storage_account_name       = data.azurerm_storage_account.existing.name
   storage_account_access_key = data.azurerm_storage_account.existing.primary_access_key
 
