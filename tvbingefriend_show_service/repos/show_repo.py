@@ -113,7 +113,7 @@ class ShowRepository:
                 ~Show.name.ilike(query),  # Exclude exact matches
                 ~Show.name.ilike(f"{query}%")  # Exclude prefix matches
             ).order_by(
-                Show.weight.desc().nullslast()  # Order by popularity/weight
+                Show.weight.desc()  # Order by popularity/weight (MySQL compatible)
             ).limit(limit - len(exact_matches) - len(prefix_matches)).all()
 
             # Combine results in order of relevance
