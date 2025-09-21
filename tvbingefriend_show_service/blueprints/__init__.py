@@ -5,6 +5,7 @@ from tvbingefriend_show_service.blueprints.bp_start_get_all import bp as bp_star
 from tvbingefriend_show_service.blueprints.bp_updates_manual import bp as bp_updates_manual
 from tvbingefriend_show_service.blueprints.bp_updates_timer import bp as bp_updates_timer
 from tvbingefriend_show_service.blueprints.bp_health_monitoring import bp as bp_health_monitoring
+from tvbingefriend_show_service.blueprints.bp_get_show_by_id import bp as bp_get_show_by_id
 
 __all__ = [
     "bp_get_details",
@@ -13,4 +14,5 @@ __all__ = [
     "bp_updates_manual",
     "bp_updates_timer",
     "bp_health_monitoring",
+    "bp_get_show_by_id",
 ]
