@@ -409,3 +409,48 @@ class ShowService:
                 })
         
         return retry_summary
+
+    def get_show_by_id(self, show_id: int) -> dict[str, Any] | None:
+        """Get a show by its ID
+
+        Args:
+            show_id (int): Show ID
+
+        Returns:
+            dict[str, Any] | None: Show data or None if not found
+        """
+        try:
+            with db_session_manager() as db:
+                show = self.show_repository.get_show_by_id(show_id, db)
+                if show:
+                    # Convert Show object to dictionary
+                    show_dict = {
+                        'id': show.id,
+                        'url': show.url,
+                        'name': show.name,
+                        'type': show.type,
+                        'language': show.language,
+                        'genres': show.genres,
+                        'status': show.status,
+                        'runtime': show.runtime,
+                        'averageRuntime': show.averageRuntime,
+                        'premiered': show.premiered,
+                        'ended': show.ended,
+                        'officialSite': show.officialSite,
+                        'schedule': show.schedule,
+                        'rating': show.rating,
+                        'weight': show.weight,
+                        'network': show.network,
+                        'webchannel': show.webchannel,
+                        'dvdCountry': show.dvdCountry,
+                        'externals': show.externals,
+                        'image': show.image,
+                        'summary': show.summary,
+                        'updated': show.updated,
+                        '_links': show._links
+                    }
+                    return show_dict
+                return None
+        except Exception as e:
+            logging.error(f"ShowService.get_show_by_id: Error getting show {show_id}: {e}")
+            return None

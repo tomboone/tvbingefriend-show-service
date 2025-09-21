@@ -54,3 +54,23 @@ class ShowRepository:
             logging.error(f"show_repository.upsert_show: Database error during upsert of show_id {show_id}: {e}")
         except Exception as e:  # catch any other errors and log them
             logging.error(f"show_repository.upsert_show: Unexpected error during upsert of show show_id {show_id}: {e}")
+
+    def get_show_by_id(self, show_id: int, db: Session) -> Show | None:
+        """Get a show by its ID
+
+        Args:
+            show_id (int): Show ID
+            db (Session): Database session
+
+        Returns:
+            Show | None: Show object or None if not found
+        """
+        try:
+            show = db.query(Show).filter(Show.id == show_id).first()
+            return show
+        except SQLAlchemyError as e:
+            logging.error(f"show_repository.get_show_by_id: Database error getting show_id {show_id}: {e}")
+            return None
+        except Exception as e:
+            logging.error(f"show_repository.get_show_by_id: Unexpected error getting show_id {show_id}: {e}")
+            return None
