@@ -1,5 +1,5 @@
 """SQLAlchemy model for a show."""
-from sqlalchemy import String, Integer, Text
+from sqlalchemy import String, Integer, Text, Index
 from sqlalchemy.orm import mapped_column, Mapped
 from sqlalchemy.dialects.mysql import JSON
 
@@ -34,3 +34,10 @@ class Show(Base):
     summary: Mapped[str | None] = mapped_column(Text)
     updated: Mapped[int | None] = mapped_column(Integer)
     _links: Mapped[dict | None] = mapped_column(JSON)
+
+    # Indexes for search optimization
+    __table_args__ = (
+        Index('idx_shows_name', 'name'),  # Full text search on name
+        Index('idx_shows_type_status', 'type', 'status'),  # Filter by type and status
+        Index('idx_shows_weight_desc', 'weight'),  # Order by popularity/weight
+    )

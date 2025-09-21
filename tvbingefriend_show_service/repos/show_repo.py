@@ -74,3 +74,57 @@ class ShowRepository:
         except Exception as e:
             logging.error(f"show_repository.get_show_by_id: Unexpected error getting show_id {show_id}: {e}")
             return None
+
+    def search_shows(self, query: str, limit: int = 20, offset: int = 0, db: Session | None = None) -> list[Show]:
+        """Search shows by name with optimized query
+
+        Args:
+            query (str): Search query string
+            limit (int): Maximum number of results to return (default 20)
+            offset (int): Number of results to skip for pagination (default 0)
+            db (Session): Database session
+
+        Returns:
+            list[Show]: List of matching shows ordered by relevance
+        """
+        try:
+            if not query or not query.strip() or db is None:
+                return []
+
+            query = query.strip()
+
+            # Optimized search query with multiple strategies for instant results
+            search_query = db.query(Show)
+
+            # Strategy 1: Exact name match (highest priority)
+            exact_matches = search_query.filter(Show.name.ilike(query)).limit(5).all()
+
+            # Strategy 2: Starts with query (second priority)
+            prefix_matches = search_query.filter(
+                Show.name.ilike(f"{query}%")
+            ).filter(
+                ~Show.name.ilike(query)  # Exclude exact matches already found
+            ).limit(10).all()
+
+            # Strategy 3: Contains query anywhere (third priority)
+            contains_matches = search_query.filter(
+                Show.name.ilike(f"%{query}%")
+            ).filter(
+                ~Show.name.ilike(query),  # Exclude exact matches
+                ~Show.name.ilike(f"{query}%")  # Exclude prefix matches
+            ).order_by(
+                Show.weight.desc().nullslast()  # Order by popularity/weight
+            ).limit(limit - len(exact_matches) - len(prefix_matches)).all()
+
+            # Combine results in order of relevance
+            results = exact_matches + prefix_matches + contains_matches
+
+            # Apply offset and limit to final results
+            return results[offset:offset + limit] if offset > 0 else results[:limit]
+
+        except SQLAlchemyError as e:
+            logging.error(f"show_repository.search_shows: Database error searching for '{query}': {e}")
+            return []
+        except Exception as e:
+            logging.error(f"show_repository.search_shows: Unexpected error searching for '{query}': {e}")
+            return []
