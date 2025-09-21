@@ -454,3 +454,42 @@ class ShowService:
         except Exception as e:
             logging.error(f"ShowService.get_show_by_id: Error getting show {show_id}: {e}")
             return None
+
+    def search_shows(self, query: str, limit: int = 20, offset: int = 0) -> list[dict[str, Any]]:
+        """Search shows with optimized query and serialization
+
+        Args:
+            query (str): Search query string
+            limit (int): Maximum number of results to return (default 20)
+            offset (int): Number of results to skip for pagination (default 0)
+
+        Returns:
+            list[dict[str, Any]]: List of matching show data ordered by relevance
+        """
+        try:
+            with db_session_manager() as db:
+                shows = self.show_repository.search_shows(query, limit, offset, db)
+
+                # Optimized serialization for search results (include only essential fields)
+                return [
+                    {
+                        'id': show.id,
+                        'name': show.name,
+                        'type': show.type,
+                        'language': show.language,
+                        'genres': show.genres,
+                        'status': show.status,
+                        'premiered': show.premiered,
+                        'ended': show.ended,
+                        'rating': show.rating,
+                        'weight': show.weight,
+                        'network': show.network,
+                        'webchannel': show.webchannel,
+                        'image': show.image,
+                        'summary': show.summary[:200] + '...' if show.summary and len(show.summary) > 200 else show.summary
+                    }
+                    for show in shows
+                ]
+        except Exception as e:
+            logging.error(f"ShowService.search_shows: Error searching for '{query}': {e}")
+            return []
