@@ -14,6 +14,10 @@ variable "tf_shared_key" {
   type = string
 }
 
+variable "allowed_origins" {
+  type = list(string)
+}
+
 variable "mysql_admin_username" {
   type        = string
   description = "MySQL flexible server admin username"
