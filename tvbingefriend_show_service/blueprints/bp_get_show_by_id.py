@@ -10,7 +10,7 @@ bp: func.Blueprint = func.Blueprint()
 
 
 @bp.function_name(name="get_show_by_id")
-@bp.route(route="shows/{show_id:int}", methods=["GET"])
+@bp.route(route="shows/{show_id:int}", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
 def get_show_by_id(req: func.HttpRequest) -> func.HttpResponse:
     """Get a show by its ID
 

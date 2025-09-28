@@ -12,7 +12,7 @@ bp: func.Blueprint = func.Blueprint()
 
 
 @bp.function_name(name="search_shows")
-@bp.route(route="shows/search", methods=["GET"])
+@bp.route(route="shows/search", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
 def search_shows(req: func.HttpRequest) -> func.HttpResponse:
     """Search shows by name with instant results
 
