@@ -14,6 +14,7 @@ from tvbingefriend_show_service.config import (
     SHOW_IDS_TABLE,
     INDEX_QUEUE
 )
+from tvbingefriend_show_service.models.show import Show
 from tvbingefriend_show_service.repos.show_repo import ShowRepository
 from tvbingefriend_show_service.utils import db_session_manager
 from tvbingefriend_show_service.services.monitoring_service import MonitoringService, ImportStatus
@@ -492,4 +493,50 @@ class ShowService:
                 ]
         except Exception as e:
             logging.error(f"ShowService.search_shows: Error searching for '{query}': {e}")
+            return []
+
+    def get_shows_bulk(self, offset: int | None = 0, limit: int | None = 100) -> list[dict[str, Any]]:
+        """Get shows bulk
+        Args:
+            offset (int): Number of results to skip for pagination (default 0)
+            limit (int): Maximum number of results to return (default 100)
+
+        Returns:
+            list[dict[str, Any]]: List of show data ordered by id
+        """
+        try:
+            with db_session_manager() as db:
+                shows_bulk: list[Show] = self.show_repository.get_shows_bulk(db, offset, limit)
+
+                # noinspection PyProtectedMember
+                return [
+                    {
+                        "id": show.id,
+                        "url": show.url,
+                        "name": show.name,
+                        "type": show.type,
+                        "language": show.language,
+                        "genres": show.genres,
+                        "status": show.status,
+                        "runtime": show.status,
+                        "averageRuntime": show.averageRuntime,
+                        "premiered": show.premiered,
+                        "ended": show.ended,
+                        "officialSite": show.officialSite,
+                        "schedule": show.schedule,
+                        "rating": show.rating,
+                        "weight": show.weight,
+                        "network": show.network,
+                        "webchannel": show.webchannel,
+                        "dvdCountry": show.dvdCountry,
+                        "externals": show.externals,
+                        "image": show.image,
+                        "summary": show.summary,
+                        "updated": show.updated,
+                        "_links": show._links
+                    }
+                    for show in shows_bulk
+                ]
+        except Exception as e:
+            logging.error(f"ShowService.get_shows_bulk: Error getting shows bulk: {e}")
             return []

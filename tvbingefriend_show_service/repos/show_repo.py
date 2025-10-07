@@ -2,7 +2,7 @@
 import logging
 from typing import Any
 
-from sqlalchemy import inspect
+from sqlalchemy import inspect, Select
 from sqlalchemy.dialects.mysql import Insert, insert as mysql_insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, Mapper, ColumnProperty
@@ -127,4 +127,31 @@ class ShowRepository:
             return []
         except Exception as e:
             logging.error(f"show_repository.search_shows: Unexpected error searching for '{query}': {e}")
+            return []
+
+    def get_shows_bulk(self, db: Session, offset: int | None = 0, limit: int | None = 100) -> list[Show]:
+        """Get shows bulk
+
+        Args:
+            offset (int): Offset for pagination (default 0)
+            limit (int): Maximum number of results to return (default 100)
+            db (Session): Database session
+
+        Returns:
+            list[Show]: List of matching shows ordered by relevance
+        """
+        try:
+            stmt: Select = Select(Show).order_by(Show.id).offset(offset).limit(limit)
+            shows_bulk: list[Show] | None = list(db.execute(stmt).scalars().all())
+
+            if not shows_bulk:
+                return []
+
+            return shows_bulk
+
+        except SQLAlchemyError as e:
+            logging.error(f"ShowRepository.get_shows_bulk: Database error getting shows bulk: {e}")
+            return []
+        except Exception as e:
+            logging.error(f"ShowRepository.get_shows_bulk: Unexpected error getting show bulk: {e}")
             return []
