@@ -1,4 +1,4 @@
-"""Get all shows with pagination."""
+"""Get all show summariess with pagination."""
 import json
 from typing import Any
 
@@ -29,11 +29,11 @@ def get_shows_bulk(req: func.HttpRequest) -> func.HttpResponse:
     limit = min(limit, 1000)
 
     show_service: ShowService = ShowService()
-    shows_bulk: list[dict[str, Any]] = show_service.get_shows_bulk(offset, limit)
+    shows_summaries: list[dict[str, Any]] = show_service.get_show_summaries(offset, limit)
 
     response: dict[str, Any] = {
-        "shows": shows_bulk,
-        "total": len(shows_bulk),
+        "shows": shows_summaries,
+        "total": len(shows_summaries),
         "offset": offset,
         "limit": limit,
     }
