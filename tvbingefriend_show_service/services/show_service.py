@@ -540,3 +540,34 @@ class ShowService:
         except Exception as e:
             logging.error(f"ShowService.get_shows_bulk: Error getting shows bulk: {e}")
             return []
+
+    def get_show_summaries(self, offset: int | None = 0, limit: int | None = 100) -> list[dict[str, Any]]:
+        """Get shows summaries
+
+        Args:
+            offset (int): Number of results to skip for pagination (default 0)
+            limit (int): Maximum number of results to return (default 100)
+
+        Returns:
+            list[dict[str, Any]]: List of show data ordered by id
+        """
+        try:
+            with db_session_manager() as db:
+                shows_bulk: list[Show] = self.show_repository.get_shows_bulk(db, offset, limit)
+                return [
+                    {
+                        "id": show.id,
+                        "name": show.name,
+                        "genres": show.genres,
+                        "summary": show.summary,
+                        "rating": show.rating,
+                        "network": show.network,
+                        "webchannel": show.webchannel,
+                        "type": show.type,
+                        "language": show.language
+                    }
+                    for show in shows_bulk
+                ]
+        except Exception as e:
+            logging.error(f"ShowService.get_shows_summaries: Error getting show summaries: {e}")
+            return []
