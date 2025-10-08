@@ -23,8 +23,8 @@ def get_shows_bulk(req: func.HttpRequest) -> func.HttpResponse:
     Returns:
         func.HttpResponse: HTTP response object
     """
-    offset: int = req.params.get('offset', 0)
-    limit: int = req.params.get('limit', 100)
+    offset: int = int(req.params.get('offset', 0))
+    limit: int = int(req.params.get('limit', 100))
 
     limit = min(limit, 1000)
 
