@@ -518,7 +518,7 @@ class ShowService:
                         "language": show.language,
                         "genres": show.genres,
                         "status": show.status,
-                        "runtime": show.status,
+                        "runtime": show.runtime,
                         "averageRuntime": show.averageRuntime,
                         "premiered": show.premiered,
                         "ended": show.ended,

@@ -1,4 +1,4 @@
-"""Get all show summariess with pagination."""
+"""Get show summaries with pagination."""
 import json
 from typing import Any
 
@@ -9,9 +9,9 @@ from tvbingefriend_show_service.services.show_service import ShowService
 bp: func.Blueprint = func.Blueprint()
 
 
-@bp.route('/get_shows_bulk', methods=['GET'])
-def get_shows_bulk(req: func.HttpRequest) -> func.HttpResponse:
-    """Get all shows with pagination (no search filtering)
+@bp.route('/get_show_summaries', methods=['GET'])
+def get_show_summaries(req: func.HttpRequest) -> func.HttpResponse:
+    """Get show summaries with pagination
 
     Args:
         req (func.HttpRequest): HTTP request object
@@ -23,8 +23,8 @@ def get_shows_bulk(req: func.HttpRequest) -> func.HttpResponse:
     Returns:
         func.HttpResponse: HTTP response object
     """
-    offset: int = req.params.get('offset', 0)
-    limit: int = req.params.get('limit', 100)
+    offset: int = int(req.params.get('offset', 0))
+    limit: int = int(req.params.get('limit', 100))
 
     limit = min(limit, 1000)
 

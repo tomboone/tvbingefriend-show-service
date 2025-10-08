@@ -386,13 +386,225 @@ class TestShowService(unittest.TestCase):
         failed_ops = [{"id": 1, "type": "test"}]
         self.service.monitoring_service.get_failed_operations.return_value = failed_ops
         self.service.retry_service.retry_failed_operation.side_effect = Exception("Retry failed")
-        
+
         result = self.service.retry_failed_operations("test_operation", 24)
-        
+
         self.assertEqual(result["found_failed_operations"], 1)
         self.assertEqual(result["successful_retries"], 0)
         self.assertEqual(result["failed_retries"], 1)
         self.assertIn("error", result["retry_attempts"][0])
+
+    @patch('tvbingefriend_show_service.services.show_service.db_session_manager')
+    def test_get_show_by_id_success(self, mock_db_session_manager):
+        """Test getting a show by ID successfully."""
+        mock_db = MagicMock()
+        mock_db_session_manager.return_value.__enter__.return_value = mock_db
+
+        # Mock show object
+        mock_show = MagicMock()
+        mock_show.id = 1
+        mock_show.name = "Test Show"
+        mock_show.url = "http://test.com"
+        mock_show.type = "Scripted"
+        mock_show.language = "English"
+        mock_show.genres = ["Comedy"]
+        mock_show.status = "Running"
+        mock_show.runtime = 30
+        mock_show.averageRuntime = 30
+        mock_show.premiered = "2023-01-01"
+        mock_show.ended = None
+        mock_show.officialSite = "http://official.com"
+        mock_show.schedule = {"time": "20:00", "days": ["Monday"]}
+        mock_show.rating = {"average": 8.5}
+        mock_show.weight = 95
+        mock_show.network = {"name": "Test Network"}
+        mock_show.webchannel = None
+        mock_show.dvdCountry = None
+        mock_show.externals = {"tvdb": 12345}
+        mock_show.image = {"medium": "http://image.com"}
+        mock_show.summary = "A test show"
+        mock_show.updated = 1672531200
+        mock_show._links = {"self": {"href": "http://api.com"}}
+
+        self.mock_show_repo.get_show_by_id.return_value = mock_show
+
+        result = self.service.get_show_by_id(1)
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result['id'], 1)
+        self.assertEqual(result['name'], "Test Show")
+        self.mock_show_repo.get_show_by_id.assert_called_once_with(1, mock_db)
+
+    @patch('tvbingefriend_show_service.services.show_service.db_session_manager')
+    def test_get_show_by_id_not_found(self, mock_db_session_manager):
+        """Test getting a show by ID when not found."""
+        mock_db = MagicMock()
+        mock_db_session_manager.return_value.__enter__.return_value = mock_db
+        self.mock_show_repo.get_show_by_id.return_value = None
+
+        result = self.service.get_show_by_id(999)
+
+        self.assertIsNone(result)
+        self.mock_show_repo.get_show_by_id.assert_called_once_with(999, mock_db)
+
+    @patch('tvbingefriend_show_service.services.show_service.db_session_manager')
+    def test_get_show_by_id_exception(self, mock_db_session_manager):
+        """Test getting a show by ID when exception occurs."""
+        mock_db = MagicMock()
+        mock_db_session_manager.return_value.__enter__.return_value = mock_db
+        self.mock_show_repo.get_show_by_id.side_effect = Exception("Database error")
+
+        result = self.service.get_show_by_id(1)
+
+        self.assertIsNone(result)
+
+    @patch('tvbingefriend_show_service.services.show_service.db_session_manager')
+    def test_search_shows_success(self, mock_db_session_manager):
+        """Test searching shows successfully."""
+        mock_db = MagicMock()
+        mock_db_session_manager.return_value.__enter__.return_value = mock_db
+
+        # Mock show objects
+        mock_shows = []
+        for i in range(2):
+            show = MagicMock()
+            show.id = i + 1
+            show.name = f"Test Show {i + 1}"
+            show.type = "Scripted"
+            show.language = "English"
+            show.genres = ["Comedy"]
+            show.status = "Running"
+            show.premiered = "2023-01-01"
+            show.ended = None
+            show.rating = {"average": 8.5}
+            show.weight = 95
+            show.network = {"name": "Test Network"}
+            show.webchannel = None
+            show.image = {"medium": "http://image.com"}
+            show.summary = "A test show summary that is longer than 200 characters" * 10
+            mock_shows.append(show)
+
+        self.mock_show_repo.search_shows.return_value = mock_shows
+
+        result = self.service.search_shows("test", limit=20, offset=0)
+
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0]['id'], 1)
+        self.assertEqual(result[0]['name'], "Test Show 1")
+        # Test summary truncation
+        self.assertTrue(result[0]['summary'].endswith('...'))
+        self.mock_show_repo.search_shows.assert_called_once_with("test", 20, 0, mock_db)
+
+    @patch('tvbingefriend_show_service.services.show_service.db_session_manager')
+    def test_search_shows_exception(self, mock_db_session_manager):
+        """Test searching shows when exception occurs."""
+        mock_db = MagicMock()
+        mock_db_session_manager.return_value.__enter__.return_value = mock_db
+        self.mock_show_repo.search_shows.side_effect = Exception("Database error")
+
+        result = self.service.search_shows("test")
+
+        self.assertEqual(result, [])
+
+    @patch('tvbingefriend_show_service.services.show_service.db_session_manager')
+    def test_get_shows_bulk_success(self, mock_db_session_manager):
+        """Test getting shows bulk successfully."""
+        mock_db = MagicMock()
+        mock_db_session_manager.return_value.__enter__.return_value = mock_db
+
+        # Mock show objects
+        mock_shows = []
+        for i in range(2):
+            show = MagicMock()
+            show.id = i + 1
+            show.url = f"http://test{i+1}.com"
+            show.name = f"Test Show {i + 1}"
+            show.type = "Scripted"
+            show.language = "English"
+            show.genres = ["Comedy"]
+            show.status = "Running"
+            show.runtime = 30
+            show.averageRuntime = 30
+            show.premiered = "2023-01-01"
+            show.ended = None
+            show.officialSite = "http://official.com"
+            show.schedule = {"time": "20:00", "days": ["Monday"]}
+            show.rating = {"average": 8.5}
+            show.weight = 95
+            show.network = {"name": "Test Network"}
+            show.webchannel = None
+            show.dvdCountry = None
+            show.externals = {"tvdb": 12345}
+            show.image = {"medium": "http://image.com"}
+            show.summary = "A test show"
+            show.updated = 1672531200
+            show._links = {"self": {"href": "http://api.com"}}
+            mock_shows.append(show)
+
+        self.mock_show_repo.get_shows_bulk.return_value = mock_shows
+
+        result = self.service.get_shows_bulk(offset=0, limit=100)
+
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0]['id'], 1)
+        self.assertEqual(result[0]['name'], "Test Show 1")
+        self.mock_show_repo.get_shows_bulk.assert_called_once_with(mock_db, 0, 100)
+
+    @patch('tvbingefriend_show_service.services.show_service.db_session_manager')
+    def test_get_shows_bulk_exception(self, mock_db_session_manager):
+        """Test getting shows bulk when exception occurs."""
+        mock_db = MagicMock()
+        mock_db_session_manager.return_value.__enter__.return_value = mock_db
+        self.mock_show_repo.get_shows_bulk.side_effect = Exception("Database error")
+
+        result = self.service.get_shows_bulk()
+
+        self.assertEqual(result, [])
+
+    @patch('tvbingefriend_show_service.services.show_service.db_session_manager')
+    def test_get_show_summaries_success(self, mock_db_session_manager):
+        """Test getting show summaries successfully."""
+        mock_db = MagicMock()
+        mock_db_session_manager.return_value.__enter__.return_value = mock_db
+
+        # Mock show objects
+        mock_shows = []
+        for i in range(2):
+            show = MagicMock()
+            show.id = i + 1
+            show.name = f"Test Show {i + 1}"
+            show.genres = ["Comedy"]
+            show.summary = "A test show"
+            show.rating = {"average": 8.5}
+            show.network = {"name": "Test Network"}
+            show.webchannel = None
+            show.type = "Scripted"
+            show.language = "English"
+            mock_shows.append(show)
+
+        self.mock_show_repo.get_shows_bulk.return_value = mock_shows
+
+        result = self.service.get_show_summaries(offset=0, limit=100)
+
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0]['id'], 1)
+        self.assertEqual(result[0]['name'], "Test Show 1")
+        # Should only contain summary fields
+        self.assertIn('genres', result[0])
+        self.assertIn('summary', result[0])
+        self.assertNotIn('url', result[0])  # Should not contain full show data
+        self.mock_show_repo.get_shows_bulk.assert_called_once_with(mock_db, 0, 100)
+
+    @patch('tvbingefriend_show_service.services.show_service.db_session_manager')
+    def test_get_show_summaries_exception(self, mock_db_session_manager):
+        """Test getting show summaries when exception occurs."""
+        mock_db = MagicMock()
+        mock_db_session_manager.return_value.__enter__.return_value = mock_db
+        self.mock_show_repo.get_shows_bulk.side_effect = Exception("Database error")
+
+        result = self.service.get_show_summaries()
+
+        self.assertEqual(result, [])
 
 
 if __name__ == '__main__':
