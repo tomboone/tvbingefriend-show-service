@@ -237,6 +237,55 @@ class TestShowRepository(unittest.TestCase):
         self.assertEqual(result, [])
         mock_logging.error.assert_called()
 
+    @patch('tvbingefriend_show_service.repos.show_repo.Select')
+    def test_get_shows_bulk_with_show_ids(self, mock_select):
+        """Test getting shows bulk with specific show IDs."""
+        mock_shows = [MagicMock(), MagicMock()]
+        mock_shows[0].id = 1
+        mock_shows[1].id = 5
+
+        # Mock the Select and execute chain
+        mock_stmt = MagicMock()
+        mock_where = MagicMock()
+        mock_stmt.where.return_value = mock_where
+        mock_where.order_by.return_value.limit.return_value = mock_where
+        mock_select.return_value = mock_stmt
+
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = mock_shows
+        self.mock_db_session.execute.return_value = mock_result
+
+        result = self.repo.get_shows_bulk(self.mock_db_session, 0, 100, [1, 5, 10])
+
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0].id, 1)
+        self.assertEqual(result[1].id, 5)
+        mock_select.assert_called_once()
+        # Verify where was called (for filtering by show_ids)
+        mock_stmt.where.assert_called_once()
+
+    @patch('tvbingefriend_show_service.repos.show_repo.Select')
+    def test_get_shows_bulk_with_empty_show_ids(self, mock_select):
+        """Test getting shows bulk with empty show_ids list."""
+        mock_shows = [MagicMock(), MagicMock()]
+        mock_shows[0].id = 1
+        mock_shows[1].id = 2
+
+        # Mock the Select and execute chain (should use offset path)
+        mock_stmt = MagicMock()
+        mock_stmt.offset.return_value.order_by.return_value.limit.return_value = mock_stmt
+        mock_select.return_value = mock_stmt
+
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = mock_shows
+        self.mock_db_session.execute.return_value = mock_result
+
+        result = self.repo.get_shows_bulk(self.mock_db_session, 0, 100, [])
+
+        self.assertEqual(len(result), 2)
+        # Verify offset was called (fallback to pagination when show_ids is empty)
+        mock_stmt.offset.assert_called_once()
+
 
 if __name__ == '__main__':
     unittest.main()

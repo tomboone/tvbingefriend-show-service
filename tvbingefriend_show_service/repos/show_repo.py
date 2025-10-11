@@ -129,19 +129,31 @@ class ShowRepository:
             logging.error(f"show_repository.search_shows: Unexpected error searching for '{query}': {e}")
             return []
 
-    def get_shows_bulk(self, db: Session, offset: int | None = 0, limit: int | None = 100) -> list[Show]:
+    def get_shows_bulk(self, db: Session, offset: int | None = 0, limit: int | None = 100, show_ids: list[int] | None = None) -> list[Show]:
         """Get shows bulk
 
         Args:
             offset (int): Offset for pagination (default 0)
             limit (int): Maximum number of results to return (default 100)
             db (Session): Database session
+            show_ids (list[int] | None): Optional list of specific show IDs to retrieve
 
         Returns:
-            list[Show]: List of matching shows ordered by relevance
+            list[Show]: List of matching shows ordered by id
         """
         try:
-            stmt: Select = Select(Show).order_by(Show.id).offset(offset).limit(limit)
+            stmt: Select = Select(Show)
+
+            # If show_ids are provided, filter by them (ignores offset)
+            if show_ids is not None and len(show_ids) > 0:
+                stmt = stmt.where(Show.id.in_(show_ids))
+            else:
+                # Only apply offset if no show_ids are provided
+                stmt = stmt.offset(offset)
+
+            # Always apply ordering and limit
+            stmt = stmt.order_by(Show.id).limit(limit)
+
             shows_bulk: list[Show] | None = list(db.execute(stmt).scalars().all())
 
             if not shows_bulk:
