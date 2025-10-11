@@ -9,7 +9,9 @@ from tvbingefriend_show_service.blueprints import (
     bp_updates_timer,
     bp_health_monitoring,
     bp_get_show_by_id,
-    bp_search_shows
+    bp_search_shows,
+    bp_get_show_summaries,
+    bp_get_shows_bulk
 )
 
 func_app = func.FunctionApp()
@@ -22,3 +24,5 @@ func_app.register_blueprint(bp_updates_timer)
 func_app.register_blueprint(bp_health_monitoring)
 func_app.register_blueprint(bp_get_show_by_id)
 func_app.register_blueprint(bp_search_shows)
+func_app.register_blueprint(bp_get_show_summaries)
+func_app.register_blueprint(bp_get_shows_bulk)

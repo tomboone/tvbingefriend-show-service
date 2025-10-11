@@ -548,7 +548,7 @@ class TestShowService(unittest.TestCase):
         self.assertEqual(len(result), 2)
         self.assertEqual(result[0]['id'], 1)
         self.assertEqual(result[0]['name'], "Test Show 1")
-        self.mock_show_repo.get_shows_bulk.assert_called_once_with(mock_db, 0, 100)
+        self.mock_show_repo.get_shows_bulk.assert_called_once_with(mock_db, 0, 100, None)
 
     @patch('tvbingefriend_show_service.services.show_service.db_session_manager')
     def test_get_shows_bulk_exception(self, mock_db_session_manager):

@@ -495,18 +495,19 @@ class ShowService:
             logging.error(f"ShowService.search_shows: Error searching for '{query}': {e}")
             return []
 
-    def get_shows_bulk(self, offset: int | None = 0, limit: int | None = 100) -> list[dict[str, Any]]:
+    def get_shows_bulk(self, offset: int | None = 0, limit: int | None = 100, show_ids: list[int] | None = None) -> list[dict[str, Any]]:
         """Get shows bulk
         Args:
             offset (int): Number of results to skip for pagination (default 0)
             limit (int): Maximum number of results to return (default 100)
+            show_ids (list[int] | None): Optional list of specific show IDs to retrieve
 
         Returns:
             list[dict[str, Any]]: List of show data ordered by id
         """
         try:
             with db_session_manager() as db:
-                shows_bulk: list[Show] = self.show_repository.get_shows_bulk(db, offset, limit)
+                shows_bulk: list[Show] = self.show_repository.get_shows_bulk(db, offset, limit, show_ids)
 
                 # noinspection PyProtectedMember
                 return [
