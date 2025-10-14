@@ -9,7 +9,7 @@ from tvbingefriend_show_service.services.show_service import ShowService
 bp: func.Blueprint = func.Blueprint()
 
 
-@bp.route('get_show_summaries', methods=['GET'])
+@bp.route('get_show_summaries', methods=['GET'], auth_level=func.AuthLevel.ANONYMOUS)
 def get_show_summaries(req: func.HttpRequest) -> func.HttpResponse:
     """Get show summaries with pagination
 

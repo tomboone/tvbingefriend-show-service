@@ -9,7 +9,7 @@ from tvbingefriend_show_service.services.show_service import ShowService
 bp: func.Blueprint = func.Blueprint()
 
 
-@bp.route('get_shows_bulk', methods=['GET'])
+@bp.route('get_shows_bulk', methods=['GET'], auth_level=func.AuthLevel.ANONYMOUS)
 def get_shows_bulk(req: func.HttpRequest) -> func.HttpResponse:
     """Get all shows with pagination (no search filtering)
 
